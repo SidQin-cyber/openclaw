@@ -146,6 +146,48 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
   let partialUpdateQueue: Promise<void> = Promise.resolve();
   let streamingStartPromise: Promise<void> | null = null;
 
+  const mergeStreamingText = (nextText: string) => {
+    if (!streamText) {
+      streamText = nextText;
+      return;
+    }
+    if (nextText.startsWith(streamText)) {
+      // Handle cumulative partial payloads where nextText already includes prior text.
+      streamText = nextText;
+      return;
+    }
+    if (streamText.endsWith(nextText)) {
+      return;
+    }
+    streamText += nextText;
+  };
+
+  const queueStreamingUpdate = (
+    nextText: string,
+    options?: {
+      dedupeWithLastPartial?: boolean;
+    },
+  ) => {
+    if (!nextText) {
+      return;
+    }
+    if (options?.dedupeWithLastPartial && nextText === lastPartial) {
+      return;
+    }
+    if (options?.dedupeWithLastPartial) {
+      lastPartial = nextText;
+    }
+    mergeStreamingText(nextText);
+    partialUpdateQueue = partialUpdateQueue.then(async () => {
+      if (streamingStartPromise) {
+        await streamingStartPromise;
+      }
+      if (streaming?.isActive()) {
+        await streaming.update(streamText);
+      }
+    });
+  };
+
   const startStreaming = () => {
     if (!streamingEnabled || streamingStartPromise || streaming) {
       return;
@@ -236,6 +278,11 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
           }
 
           if (streaming?.isActive()) {
+            if (info?.kind === "block") {
+              // Some runtimes emit block payloads without onPartial/final callbacks.
+              // Mirror block text into streamText so onIdle close still sends content.
+              queueStreamingUpdate(text);
+            }
             if (info?.kind === "final") {
               streamText = text;
               await closeStreaming();
@@ -331,19 +378,10 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       onModelSelected: prefixContext.onModelSelected,
       onPartialReply: streamingEnabled
         ? (payload: ReplyPayload) => {
-            if (!payload.text || payload.text === lastPartial) {
+            if (!payload.text) {
               return;
             }
-            lastPartial = payload.text;
-            streamText = payload.text;
-            partialUpdateQueue = partialUpdateQueue.then(async () => {
-              if (streamingStartPromise) {
-                await streamingStartPromise;
-              }
-              if (streaming?.isActive()) {
-                await streaming.update(streamText);
-              }
-            });
+            queueStreamingUpdate(payload.text, { dedupeWithLastPartial: true });
           }
         : undefined,
     },
