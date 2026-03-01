@@ -236,3 +236,53 @@ describe("sendMessageMatrix threads", () => {
     });
   });
 });
+
+describe("sendMessageMatrix mentions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mediaKindFromMimeMock.mockReturnValue("image");
+    isVoiceCompatibleAudioMock.mockReturnValue(false);
+    setMatrixRuntime(runtimeStub);
+  });
+
+  it("adds m.mentions.user_ids for mentioned Matrix user IDs in text messages", async () => {
+    const { client, sendMessage } = makeClient();
+
+    await sendMessageMatrix(
+      "room:!room:example",
+      "hello @alice:matrix.example.org, ping @bob:matrix.org",
+      {
+        client,
+      },
+    );
+
+    const content = sendMessage.mock.calls[0]?.[1] as {
+      "m.mentions"?: { user_ids?: string[] };
+    };
+    expect(content["m.mentions"]).toEqual({
+      user_ids: ["@alice:matrix.example.org", "@bob:matrix.org"],
+    });
+  });
+
+  it("deduplicates repeated mentions and keeps mention metadata on media captions", async () => {
+    const { client, sendMessage } = makeClient();
+
+    await sendMessageMatrix(
+      "room:!room:example",
+      "cc @alice:matrix.example.org and @alice:matrix.example.org",
+      {
+        client,
+        mediaUrl: "file:///tmp/photo.png",
+      },
+    );
+
+    const content = sendMessage.mock.calls[0]?.[1] as {
+      "m.mentions"?: { user_ids?: string[] };
+      msgtype?: string;
+    };
+    expect(content.msgtype).toBe("m.image");
+    expect(content["m.mentions"]).toEqual({
+      user_ids: ["@alice:matrix.example.org"],
+    });
+  });
+});

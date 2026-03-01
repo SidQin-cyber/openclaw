@@ -51,13 +51,21 @@ export type MatrixReplyMeta = {
   "m.relates_to"?: MatrixRelation;
 };
 
+export type MatrixMentions = {
+  user_ids?: string[];
+  room?: boolean;
+};
+
 export type MatrixMediaInfo =
   | FileWithThumbnailInfo
   | DimensionalFileInfo
   | TimedFileInfo
   | VideoFileInfo;
 
-export type MatrixTextContent = TextualMessageEventContent & MatrixReplyMeta;
+export type MatrixTextContent = TextualMessageEventContent &
+  MatrixReplyMeta & {
+    "m.mentions"?: MatrixMentions;
+  };
 
 export type MatrixMediaContent = MessageEventContent &
   MatrixReplyMeta & {
@@ -65,6 +73,7 @@ export type MatrixMediaContent = MessageEventContent &
     url?: string;
     file?: EncryptedFile;
     filename?: string;
+    "m.mentions"?: MatrixMentions;
     "org.matrix.msc3245.voice"?: Record<string, never>;
     "org.matrix.msc1767.audio"?: { duration: number };
   };
@@ -106,4 +115,5 @@ export type MediaKind = "image" | "audio" | "video" | "document" | "unknown";
 export type MatrixFormattedContent = MessageEventContent & {
   format?: string;
   formatted_body?: string;
+  "m.mentions"?: MatrixMentions;
 };

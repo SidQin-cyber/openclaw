@@ -4,6 +4,7 @@ import {
   MsgType,
   RelationType,
   type MatrixFormattedContent,
+  type MatrixMentions,
   type MatrixMediaMsgType,
   type MatrixRelation,
   type MatrixReplyRelation,
@@ -12,6 +13,8 @@ import {
 } from "./types.js";
 
 const getCore = () => getMatrixRuntime();
+const MATRIX_USER_ID_IN_TEXT_RE =
+  /(^|[\s([{<"'])(@[A-Za-z0-9._=+\-/]+:[A-Za-z0-9.-]+(?::\d+)?)(?=$|[\s)\]}>",'!.?;:])/g;
 
 export function buildTextContent(body: string, relation?: MatrixRelation): MatrixTextContent {
   const content: MatrixTextContent = relation
@@ -25,6 +28,7 @@ export function buildTextContent(body: string, relation?: MatrixRelation): Matri
         body,
       };
   applyMatrixFormatting(content, body);
+  applyMatrixMentions(content, body);
   return content;
 }
 
@@ -35,6 +39,35 @@ export function applyMatrixFormatting(content: MatrixFormattedContent, body: str
   }
   content.format = "org.matrix.custom.html";
   content.formatted_body = formatted;
+}
+
+export function resolveMentionedUserIds(body: string): string[] {
+  if (!body) {
+    return [];
+  }
+  MATRIX_USER_ID_IN_TEXT_RE.lastIndex = 0;
+  const mentionSet = new Set<string>();
+  for (const match of body.matchAll(MATRIX_USER_ID_IN_TEXT_RE)) {
+    const userId = match[2]?.trim();
+    if (userId) {
+      mentionSet.add(userId);
+    }
+  }
+  return [...mentionSet];
+}
+
+export function applyMatrixMentions(
+  content: MatrixFormattedContent & { "m.mentions"?: MatrixMentions },
+  body: string,
+): void {
+  const userIds = resolveMentionedUserIds(body);
+  if (userIds.length === 0) {
+    return;
+  }
+  content["m.mentions"] = {
+    ...(content["m.mentions"] ?? {}),
+    user_ids: userIds,
+  };
 }
 
 export function buildReplyRelation(replyToId?: string): MatrixReplyRelation | undefined {
