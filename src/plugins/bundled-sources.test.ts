@@ -88,10 +88,18 @@ describe("bundled plugin sources", () => {
     loadPluginManifestMock.mockReturnValue({ ok: true, manifest: { id: "feishu" } });
 
     const resolved = findBundledPluginByNpmSpec({ spec: "@openclaw/feishu" });
+    const resolvedByPluginId = findBundledPluginByNpmSpec({ spec: "feishu" });
+    const resolvedByVersionedScoped = findBundledPluginByNpmSpec({
+      spec: "@openclaw/feishu@2026.2.27",
+    });
+    const resolvedByVersionedBare = findBundledPluginByNpmSpec({ spec: "feishu@latest" });
     const missing = findBundledPluginByNpmSpec({ spec: "@openclaw/not-found" });
 
     expect(resolved?.pluginId).toBe("feishu");
     expect(resolved?.localPath).toBe("/app/extensions/feishu");
+    expect(resolvedByPluginId?.pluginId).toBe("feishu");
+    expect(resolvedByVersionedScoped?.pluginId).toBe("feishu");
+    expect(resolvedByVersionedBare?.pluginId).toBe("feishu");
     expect(missing).toBeUndefined();
   });
 });
