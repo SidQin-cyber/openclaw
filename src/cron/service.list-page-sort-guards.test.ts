@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { listPage } from "./service/ops.js";
 import { createMockCronStateForJobs } from "./service.test-harness.js";
+import { listPage } from "./service/ops.js";
 import type { CronJob } from "./types.js";
 
 function createBaseJob(overrides?: Partial<CronJob>): CronJob {
