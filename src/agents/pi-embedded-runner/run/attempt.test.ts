@@ -177,6 +177,26 @@ describe("wrapStreamFnTrimToolCallNames", () => {
     expect(result).toBe(finalMessage);
     expect(baseFn).toHaveBeenCalledTimes(1);
   });
+
+  it("normalizes common tool aliases when the canonical name is allowed", async () => {
+    const finalToolCall = { type: "toolCall", name: " BASH " };
+    const finalMessage = { role: "assistant", content: [finalToolCall] };
+    const baseFn = vi.fn(() =>
+      createFakeStream({
+        events: [],
+        resultMessage: finalMessage,
+      }),
+    );
+
+    const wrappedFn = wrapStreamFnTrimToolCallNames(baseFn as never, new Set(["exec"]));
+    const stream = wrappedFn({} as never, {} as never, {} as never) as Awaited<
+      ReturnType<typeof wrappedFn>
+    >;
+    const result = await stream.result();
+
+    expect(finalToolCall.name).toBe("exec");
+    expect(result).toBe(finalMessage);
+  });
 });
 
 describe("isOllamaCompatProvider", () => {
