@@ -140,3 +140,143 @@ describe("createMatrixRoomMessageHandler BodyForAgent sender label", () => {
     );
   });
 });
+
+function createStartupGraceFixture(params: { startupMs: number; startupGraceMs: number }) {
+  const recordInboundSession = vi.fn().mockResolvedValue(undefined);
+  const core = {
+    channel: {
+      pairing: {
+        readAllowFromStore: vi.fn().mockResolvedValue([]),
+      },
+      routing: {
+        resolveAgentRoute: vi.fn().mockReturnValue({
+          agentId: "main",
+          accountId: undefined,
+          sessionKey: "agent:main:matrix:channel:!room:example.org",
+          mainSessionKey: "agent:main:main",
+        }),
+      },
+      session: {
+        resolveStorePath: vi.fn().mockReturnValue("/tmp/openclaw-test-session.json"),
+        readSessionUpdatedAt: vi.fn().mockReturnValue(123),
+        recordInboundSession,
+      },
+      reply: {
+        resolveEnvelopeFormatOptions: vi.fn().mockReturnValue({}),
+        formatInboundEnvelope: vi.fn().mockImplementation((input: { body: string }) => input.body),
+        formatAgentEnvelope: vi.fn().mockImplementation((input: { body: string }) => input.body),
+        finalizeInboundContext: vi.fn().mockImplementation((ctx: Record<string, unknown>) => ctx),
+        resolveHumanDelayConfig: vi.fn().mockReturnValue(undefined),
+        createReplyDispatcherWithTyping: vi.fn().mockReturnValue({
+          dispatcher: {},
+          replyOptions: {},
+          markDispatchIdle: vi.fn(),
+        }),
+        withReplyDispatcher: vi
+          .fn()
+          .mockResolvedValue({ queuedFinal: false, counts: { final: 0, partial: 0, tool: 0 } }),
+      },
+      commands: {
+        shouldHandleTextCommands: vi.fn().mockReturnValue(true),
+      },
+      text: {
+        hasControlCommand: vi.fn().mockReturnValue(false),
+        resolveMarkdownTableMode: vi.fn().mockReturnValue("code"),
+      },
+    },
+    system: {
+      enqueueSystemEvent: vi.fn(),
+    },
+  } as unknown as PluginRuntime;
+  const runtime = {
+    error: vi.fn(),
+  } as unknown as RuntimeEnv;
+  const logger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+  } as unknown as RuntimeLogger;
+  const client = {
+    getUserId: vi.fn().mockResolvedValue("@bot:matrix.example.org"),
+  } as unknown as MatrixClient;
+  const handler = createMatrixRoomMessageHandler({
+    client,
+    core,
+    cfg: {},
+    runtime,
+    logger,
+    logVerboseMessage: vi.fn(),
+    allowFrom: [],
+    roomsConfig: undefined,
+    mentionRegexes: [],
+    groupPolicy: "open",
+    replyToMode: "first",
+    threadReplies: "inbound",
+    dmEnabled: true,
+    dmPolicy: "open",
+    textLimit: 4000,
+    mediaMaxBytes: 5 * 1024 * 1024,
+    startupMs: params.startupMs,
+    startupGraceMs: params.startupGraceMs,
+    directTracker: {
+      isDirectMessage: vi.fn().mockResolvedValue(false),
+    },
+    getRoomInfo: vi.fn().mockResolvedValue({
+      name: "Dev Room",
+      canonicalAlias: "#dev:matrix.example.org",
+      altAliases: [],
+    }),
+    getMemberDisplayName: vi.fn().mockResolvedValue("Bu"),
+    accountId: undefined,
+  });
+  return { handler, recordInboundSession };
+}
+
+describe("createMatrixRoomMessageHandler startup grace handling", () => {
+  it("processes recent pre-start Matrix events within grace window", async () => {
+    const startupMs = 1_000_000;
+    const startupGraceMs = 10 * 60_000;
+    const { handler, recordInboundSession } = createStartupGraceFixture({
+      startupMs,
+      startupGraceMs,
+    });
+    const event = {
+      type: EventType.RoomMessage,
+      event_id: "$event-recent",
+      sender: "@bu:matrix.example.org",
+      origin_server_ts: startupMs - 5_000,
+      content: {
+        msgtype: "m.text",
+        body: "recent before restart",
+        "m.mentions": { user_ids: ["@bot:matrix.example.org"] },
+      },
+    } as unknown as MatrixRawEvent;
+
+    await handler("!room:example.org", event);
+
+    expect(recordInboundSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops stale Matrix events older than startup grace window", async () => {
+    const startupMs = 1_000_000;
+    const startupGraceMs = 10 * 60_000;
+    const { handler, recordInboundSession } = createStartupGraceFixture({
+      startupMs,
+      startupGraceMs,
+    });
+    const event = {
+      type: EventType.RoomMessage,
+      event_id: "$event-stale",
+      sender: "@bu:matrix.example.org",
+      origin_server_ts: startupMs - startupGraceMs - 1,
+      content: {
+        msgtype: "m.text",
+        body: "stale before restart",
+        "m.mentions": { user_ids: ["@bot:matrix.example.org"] },
+      },
+    } as unknown as MatrixRawEvent;
+
+    await handler("!room:example.org", event);
+
+    expect(recordInboundSession).not.toHaveBeenCalled();
+  });
+});

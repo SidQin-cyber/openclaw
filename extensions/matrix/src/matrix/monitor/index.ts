@@ -36,6 +36,7 @@ export type MonitorMatrixOpts = {
 };
 
 const DEFAULT_MEDIA_MAX_MB = 20;
+const MATRIX_RESTART_STARTUP_GRACE_MS = 10 * 60_000;
 
 export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promise<void> {
   if (isBunRuntime()) {
@@ -268,7 +269,9 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
   const mediaMaxMb = opts.mediaMaxMb ?? accountConfig.mediaMaxMb ?? DEFAULT_MEDIA_MAX_MB;
   const mediaMaxBytes = Math.max(1, mediaMaxMb) * 1024 * 1024;
   const startupMs = Date.now();
-  const startupGraceMs = 0;
+  // Keep a bounded replay window after reconnect/restart so recent in-flight
+  // messages are not dropped by strict timestamp filtering.
+  const startupGraceMs = MATRIX_RESTART_STARTUP_GRACE_MS;
   const directTracker = createDirectRoomTracker(client, { log: logVerboseMessage });
   registerMatrixAutoJoin({ client, cfg, runtime });
   const warnedEncryptedRooms = new Set<string>();
