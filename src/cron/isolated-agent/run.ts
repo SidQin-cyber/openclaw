@@ -48,7 +48,7 @@ import {
   isExternalHookSession,
 } from "../../security/external-content.js";
 import { resolveCronDeliveryPlan } from "../delivery.js";
-import type { CronJob, CronRunOutcome, CronRunTelemetry } from "../types.js";
+import type { CronJob, CronRunOutcome, CronRunStatus, CronRunTelemetry } from "../types.js";
 import {
   dispatchCronDelivery,
   matchesMessagingToolDeliveryTarget,
@@ -577,10 +577,15 @@ export async function runCronIsolatedAgentTurn(params: {
   const embeddedRunError = hasErrorPayload
     ? (lastErrorPayloadText ?? "cron isolated run returned an error payload")
     : undefined;
-  const resolveRunOutcome = (params?: { delivered?: boolean; deliveryAttempted?: boolean }) =>
-    withRunSession({
-      status: hasErrorPayload ? "error" : "ok",
-      ...(hasErrorPayload
+  const resolveRunOutcome = (params?: { delivered?: boolean; deliveryAttempted?: boolean }) => {
+    // Some providers can emit transient error payloads during announce delivery retries
+    // even when final channel delivery succeeds. Treat final delivered=true as success
+    // to keep cron status aligned with user-visible delivery outcome.
+    const deliveredSuccess = hasErrorPayload && params?.delivered === true;
+    const status: CronRunStatus = deliveredSuccess ? "ok" : hasErrorPayload ? "error" : "ok";
+    return withRunSession({
+      status,
+      ...(status === "error"
         ? { error: embeddedRunError ?? "cron isolated run returned an error payload" }
         : {}),
       summary,
@@ -589,6 +594,7 @@ export async function runCronIsolatedAgentTurn(params: {
       deliveryAttempted: params?.deliveryAttempted,
       ...telemetry,
     });
+  };
 
   // Skip delivery for heartbeat-only responses (HEARTBEAT_OK with no real content).
   const ackMaxChars = resolveHeartbeatAckMaxChars(agentCfg);

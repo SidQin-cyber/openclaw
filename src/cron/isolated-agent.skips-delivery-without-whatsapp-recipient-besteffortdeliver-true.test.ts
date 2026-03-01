@@ -220,6 +220,28 @@ describe("runCronIsolatedAgentTurn", () => {
     });
   });
 
+  it("treats delivered announce runs as success even when transient error payloads exist", async () => {
+    await withTempCronHome(async (home) => {
+      const storePath = await writeSessionStore(home, { lastProvider: "webchat", lastTo: "" });
+      const deps = createCliDeps();
+      mockAgentPayloads([
+        { text: "⚠️ ✉️ Message failed", isError: true },
+        { text: "Final weather summary" },
+      ]);
+
+      const res = await runExplicitTelegramAnnounceTurn({
+        home,
+        storePath,
+        deps,
+      });
+
+      expect(res.status).toBe("ok");
+      expect(res.error).toBeUndefined();
+      expect(res.delivered).toBe(true);
+      expect(res.deliveryAttempted).toBe(true);
+    });
+  });
+
   it("reports not-delivered when best-effort structured outbound sends all fail", async () => {
     await expectBestEffortTelegramNotDelivered({
       text: "caption",
