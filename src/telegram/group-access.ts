@@ -94,6 +94,7 @@ export const evaluateTelegramGroupPolicyAccess = (params: {
   chatId: string | number;
   cfg: OpenClawConfig;
   telegramCfg: TelegramAccountConfig;
+  providerConfigPresent?: boolean;
   topicConfig?: TelegramTopicConfig;
   groupConfig?: TelegramGroupConfig;
   effectiveGroupAllow: NormalizedAllowFrom;
@@ -108,7 +109,8 @@ export const evaluateTelegramGroupPolicyAccess = (params: {
   checkChatAllowlist: boolean;
 }): TelegramGroupPolicyAccessResult => {
   const { groupPolicy: runtimeFallbackPolicy } = resolveTelegramRuntimeGroupPolicy({
-    providerConfigPresent: params.cfg.channels?.telegram !== undefined,
+    providerConfigPresent:
+      params.providerConfigPresent ?? params.cfg.channels?.telegram !== undefined,
     groupPolicy: params.telegramCfg.groupPolicy,
     defaultGroupPolicy: params.cfg.channels?.defaults?.groupPolicy,
   });

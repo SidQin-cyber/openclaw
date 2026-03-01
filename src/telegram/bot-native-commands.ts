@@ -92,6 +92,7 @@ export type RegisterTelegramHandlerParams = {
   opts: TelegramBotOptions;
   runtime: RuntimeEnv;
   telegramCfg: TelegramAccountConfig;
+  providerConfigPresent?: boolean;
   allowFrom?: Array<string | number>;
   groupAllowFrom?: Array<string | number>;
   resolveGroupPolicy: (chatId: string | number) => ChannelGroupPolicy;
@@ -119,6 +120,7 @@ type RegisterTelegramNativeCommandsParams = {
   runtime: RuntimeEnv;
   accountId: string;
   telegramCfg: TelegramAccountConfig;
+  providerConfigPresent?: boolean;
   allowFrom?: Array<string | number>;
   groupAllowFrom?: Array<string | number>;
   replyToMode: ReplyToMode;
@@ -142,6 +144,7 @@ async function resolveTelegramCommandAuth(params: {
   cfg: OpenClawConfig;
   accountId: string;
   telegramCfg: TelegramAccountConfig;
+  providerConfigPresent?: boolean;
   allowFrom?: Array<string | number>;
   groupAllowFrom?: Array<string | number>;
   useAccessGroups: boolean;
@@ -158,6 +161,7 @@ async function resolveTelegramCommandAuth(params: {
     cfg,
     accountId,
     telegramCfg,
+    providerConfigPresent,
     allowFrom,
     groupAllowFrom,
     useAccessGroups,
@@ -225,6 +229,7 @@ async function resolveTelegramCommandAuth(params: {
     chatId,
     cfg,
     telegramCfg,
+    providerConfigPresent,
     topicConfig,
     groupConfig,
     effectiveGroupAllow,
@@ -291,6 +296,7 @@ export const registerTelegramNativeCommands = ({
   runtime,
   accountId,
   telegramCfg,
+  providerConfigPresent,
   allowFrom,
   groupAllowFrom,
   replyToMode,
@@ -457,6 +463,7 @@ export const registerTelegramNativeCommands = ({
             cfg,
             accountId,
             telegramCfg,
+            providerConfigPresent,
             allowFrom,
             groupAllowFrom,
             useAccessGroups,
@@ -691,6 +698,7 @@ export const registerTelegramNativeCommands = ({
             cfg,
             accountId,
             telegramCfg,
+            providerConfigPresent,
             allowFrom,
             groupAllowFrom,
             useAccessGroups,

@@ -121,6 +121,10 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     accountId: opts.accountId,
   });
   const telegramCfg = account.config;
+  const providerConfigPresent =
+    cfg.channels?.telegram !== undefined ||
+    account.tokenSource !== "none" ||
+    Boolean(opts.token?.trim());
 
   const fetchImpl = resolveTelegramFetch(opts.proxyFetch, {
     network: telegramCfg.network,
@@ -392,6 +396,7 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     runtime,
     accountId: account.accountId,
     telegramCfg,
+    providerConfigPresent,
     allowFrom,
     groupAllowFrom,
     replyToMode,
@@ -414,6 +419,7 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     runtime,
     mediaMaxBytes,
     telegramCfg,
+    providerConfigPresent,
     allowFrom,
     groupAllowFrom,
     resolveGroupPolicy,
