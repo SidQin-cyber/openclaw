@@ -225,6 +225,82 @@ describe("deliverReplies", () => {
     );
   });
 
+  it("retries sendMessage without thread when message_thread_id is stale", async () => {
+    const runtime = createRuntime();
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("400: Bad Request: message thread not found"))
+      .mockResolvedValueOnce({
+        message_id: 41,
+        chat: { id: "123" },
+      });
+    const bot = createBot({ sendMessage });
+
+    await deliverWith({
+      replies: [{ text: "Hello" }],
+      runtime,
+      bot,
+      thread: { id: 42, scope: "dm" },
+    });
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage).toHaveBeenNthCalledWith(
+      1,
+      "123",
+      expect.any(String),
+      expect.objectContaining({
+        message_thread_id: 42,
+      }),
+    );
+    expect(sendMessage).toHaveBeenNthCalledWith(
+      2,
+      "123",
+      expect.any(String),
+      expect.not.objectContaining({
+        message_thread_id: expect.anything(),
+      }),
+    );
+  });
+
+  it("retries media sends without thread when message_thread_id is stale", async () => {
+    const runtime = createRuntime();
+    const sendPhoto = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("400: Bad Request: message thread not found"))
+      .mockResolvedValueOnce({
+        message_id: 42,
+        chat: { id: "123" },
+      });
+    const bot = createBot({ sendPhoto });
+
+    mockMediaLoad("photo.jpg", "image/jpeg", "image");
+
+    await deliverWith({
+      replies: [{ mediaUrl: "https://example.com/photo.jpg", text: "caption" }],
+      runtime,
+      bot,
+      thread: { id: 88, scope: "dm" },
+    });
+
+    expect(sendPhoto).toHaveBeenCalledTimes(2);
+    expect(sendPhoto).toHaveBeenNthCalledWith(
+      1,
+      "123",
+      expect.anything(),
+      expect.objectContaining({
+        message_thread_id: 88,
+      }),
+    );
+    expect(sendPhoto).toHaveBeenNthCalledWith(
+      2,
+      "123",
+      expect.anything(),
+      expect.not.objectContaining({
+        message_thread_id: expect.anything(),
+      }),
+    );
+  });
+
   it("does not include link_preview_options when linkPreview is true", async () => {
     const { runtime, sendMessage, bot } = createSendMessageHarness();
 
