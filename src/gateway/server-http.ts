@@ -543,18 +543,12 @@ export function createGatewayHttpServer(opts: {
               resolveAvatar: (agentId) => resolveAgentAvatar(configSnapshot, agentId),
             }),
         });
-        requestStages.push({
-          name: "control-ui-http",
-          run: () =>
-            handleControlUiHttpRequest(req, res, {
-              basePath: controlUiBasePath,
-              config: configSnapshot,
-              root: controlUiRoot,
-            }),
-        });
       }
-      // Plugins run after built-in gateway routes so core surfaces keep
-      // precedence on overlapping paths.
+      // Plugin routes run before the Control UI SPA catch-all so explicitly
+      // registered plugin HTTP endpoints are not shadowed by the fallback
+      // HTML handler.  Core gateway surfaces (hooks, slack, openai, canvas,
+      // control-ui-avatar) still take precedence because they appear earlier
+      // in the stage list.
       if (handlePluginRequest) {
         requestStages.push({
           name: "plugin-auth",
@@ -587,6 +581,17 @@ export function createGatewayHttpServer(opts: {
             const pathContext = pluginPathContext ?? resolvePluginRoutePathContext(requestPath);
             return handlePluginRequest(req, res, pathContext);
           },
+        });
+      }
+      if (controlUiEnabled) {
+        requestStages.push({
+          name: "control-ui-http",
+          run: () =>
+            handleControlUiHttpRequest(req, res, {
+              basePath: controlUiBasePath,
+              config: configSnapshot,
+              root: controlUiRoot,
+            }),
         });
       }
 
