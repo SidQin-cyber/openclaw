@@ -136,19 +136,70 @@ function resolveSlackUserFromMatches(
   };
 }
 
+async function fetchSlackUserById(
+  client: WebClient,
+  userId: string,
+): Promise<SlackUserLookup | null> {
+  try {
+    const res = await client.users.info({ user: userId });
+    const member = res.user as
+      | {
+          id?: string;
+          name?: string;
+          deleted?: boolean;
+          is_bot?: boolean;
+          is_app_user?: boolean;
+          real_name?: string;
+          profile?: { display_name?: string; real_name?: string; email?: string };
+        }
+      | undefined;
+    if (!member) {
+      return null;
+    }
+    const id = member.id?.trim();
+    const name = member.name?.trim();
+    if (!id || !name) {
+      return null;
+    }
+    const profile = member.profile ?? {};
+    return {
+      id,
+      name,
+      displayName: profile.display_name?.trim() || undefined,
+      realName: profile.real_name?.trim() || member.real_name?.trim() || undefined,
+      email: profile.email?.trim()?.toLowerCase() || undefined,
+      deleted: Boolean(member.deleted),
+      isBot: Boolean(member.is_bot),
+      isAppUser: Boolean(member.is_app_user),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveSlackUserAllowlist(params: {
   token: string;
   entries: string[];
   client?: WebClient;
 }): Promise<SlackUserResolution[]> {
   const client = params.client ?? createSlackWebClient(params.token);
-  const users = await listSlackUsers(client);
+
+  const parsedEntries = params.entries.map((input) => ({ input, parsed: parseSlackUserInput(input) }));
+  const needFullList = parsedEntries.some(({ parsed }) => !parsed.id && (parsed.email || parsed.name));
+
+  const idLookupCache = new Map<string, SlackUserLookup | null>();
+  for (const { parsed } of parsedEntries) {
+    if (parsed.id && !idLookupCache.has(parsed.id)) {
+      idLookupCache.set(parsed.id, await fetchSlackUserById(client, parsed.id));
+    }
+  }
+
+  const users = needFullList ? await listSlackUsers(client) : [];
   const results: SlackUserResolution[] = [];
 
-  for (const input of params.entries) {
-    const parsed = parseSlackUserInput(input);
+  for (const { input, parsed } of parsedEntries) {
     if (parsed.id) {
-      const match = users.find((user) => user.id === parsed.id);
+      const match = idLookupCache.get(parsed.id) ?? undefined;
       results.push({
         input,
         resolved: true,
