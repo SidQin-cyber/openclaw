@@ -108,7 +108,11 @@ export function listEnabledSlackAccounts(cfg: OpenClawConfig): ResolvedSlackAcco
 export function resolveSlackReplyToMode(
   account: ResolvedSlackAccount,
   chatType?: string | null,
+  channelReplyToMode?: "off" | "first" | "all",
 ): "off" | "first" | "all" {
+  if (channelReplyToMode !== undefined) {
+    return channelReplyToMode;
+  }
   const normalized = normalizeChatType(chatType ?? undefined);
   if (normalized && account.replyToModeByChatType?.[normalized] !== undefined) {
     return account.replyToModeByChatType[normalized] ?? "off";

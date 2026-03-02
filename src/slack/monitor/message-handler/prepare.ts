@@ -177,7 +177,7 @@ export async function prepareSlackMessage(params: {
 
   const baseSessionKey = route.sessionKey;
   const chatType = isDirectMessage ? "direct" : isGroupDm ? "group" : "channel";
-  const replyToMode = resolveSlackReplyToMode(account, chatType);
+  const replyToMode = resolveSlackReplyToMode(account, chatType, channelConfig?.replyToMode);
   const threadContext = resolveSlackThreadContext({ message, replyToMode });
   const threadTs = threadContext.incomingThreadTs;
   const isThreadReply = threadContext.isThreadReply;
