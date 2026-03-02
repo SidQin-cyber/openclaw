@@ -228,3 +228,10 @@ export async function uploadMattermostFile(
   }
   return info;
 }
+
+export async function fetchMattermostPost(
+  client: MattermostClient,
+  postId: string,
+): Promise<MattermostPost> {
+  return await client.request<MattermostPost>(`/posts/${postId}`);
+}
