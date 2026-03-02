@@ -107,3 +107,40 @@ export function resolveFetch(fetchImpl?: typeof fetch): typeof fetch | undefined
   }
   return wrapFetchWithAbortSignal(resolved);
 }
+
+const stainlessFilterInstalled = Symbol.for("openclaw.fetch.stainless-filter-installed");
+
+/**
+ * Install a global fetch wrapper that strips `x-stainless-*` headers from
+ * outgoing requests.  These SDK telemetry headers are injected by the
+ * Stainless-generated OpenAI client and can trigger Cloudflare bot detection
+ * on third-party API proxies.  Safe to call multiple times (idempotent).
+ */
+export function installStainlessHeaderFilter(): void {
+  if ((globalThis as Record<symbol, unknown>)[stainlessFilterInstalled]) {
+    return;
+  }
+  const originalFetch = globalThis.fetch;
+  if (!originalFetch) {
+    return;
+  }
+  const filtered = ((input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.headers) {
+      const headers = new Headers(init.headers);
+      let modified = false;
+      for (const key of [...headers.keys()]) {
+        if (key.toLowerCase().startsWith("x-stainless-")) {
+          headers.delete(key);
+          modified = true;
+        }
+      }
+      if (modified) {
+        return originalFetch(input, { ...init, headers });
+      }
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+  Object.assign(filtered, originalFetch);
+  globalThis.fetch = filtered;
+  (globalThis as Record<symbol, unknown>)[stainlessFilterInstalled] = true;
+}
