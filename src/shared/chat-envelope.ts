@@ -27,6 +27,9 @@ function looksLikeEnvelopeHeader(header: string): boolean {
 }
 
 export function stripEnvelope(text: string): string {
+  if (!text) {
+    return text ?? "";
+  }
   const match = text.match(ENVELOPE_PREFIX);
   if (!match) {
     return text;
@@ -39,6 +42,9 @@ export function stripEnvelope(text: string): string {
 }
 
 export function stripMessageIdHints(text: string): string {
+  if (!text) {
+    return text ?? "";
+  }
   if (!text.includes("[message_id:")) {
     return text;
   }

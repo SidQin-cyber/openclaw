@@ -59,7 +59,8 @@ export function isBotMentionedFromTargets(
   } else if (hasMentions && isSelfChat) {
     // Self-chat mode: ignore WhatsApp @mention JIDs, otherwise @mentioning the owner in group chats triggers the bot.
   }
-  const bodyClean = clean(msg.body);
+  const body = msg.body ?? "";
+  const bodyClean = clean(body);
   if (mentionCfg.mentionRegexes.some((re) => re.test(bodyClean))) {
     return true;
   }
@@ -72,7 +73,7 @@ export function isBotMentionedFromTargets(
       if (bodyDigits.includes(selfDigits)) {
         return true;
       }
-      const bodyNoSpace = msg.body.replace(/[\s-]/g, "");
+      const bodyNoSpace = body.replace(/[\s-]/g, "");
       const pattern = new RegExp(`\\+?${selfDigits}`, "i");
       if (pattern.test(bodyNoSpace)) {
         return true;
@@ -93,7 +94,7 @@ export function debugMention(
   const details = {
     from: msg.from,
     body: msg.body,
-    bodyClean: normalizeMentionText(msg.body),
+    bodyClean: normalizeMentionText(msg.body ?? ""),
     mentionedJids: msg.mentionedJids ?? null,
     normalizedMentionedJids: mentionTargets.normalizedMentions.length
       ? mentionTargets.normalizedMentions
