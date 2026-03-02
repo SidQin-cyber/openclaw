@@ -17,7 +17,7 @@ import {
   resolveSessionTranscriptPathInDir,
   validateSessionId,
 } from "./paths.js";
-import { resolveSessionResetPolicy } from "./reset.js";
+import { evaluateSessionFreshness, resolveSessionResetPolicy } from "./reset.js";
 import { appendAssistantMessageToSessionTranscript } from "./transcript.js";
 import type { SessionEntry } from "./types.js";
 
@@ -140,7 +140,61 @@ describe("resolveSessionResetPolicy", () => {
         resetType: "group",
       });
 
-      expect(groupPolicy.mode).toBe("daily");
+      expect(groupPolicy.mode).toBe("persistent");
+    });
+  });
+
+  describe("types omitted from resetByType stay persistent", () => {
+    it("group not listed in resetByType → persistent", () => {
+      const sessionCfg = {
+        resetByType: {
+          direct: { mode: "idle" as const, idleMinutes: 43200 },
+          thread: { mode: "idle" as const, idleMinutes: 43200 },
+        },
+      } as unknown as SessionConfig;
+
+      const policy = resolveSessionResetPolicy({ sessionCfg, resetType: "group" });
+      expect(policy.mode).toBe("persistent");
+    });
+
+    it("listed types still use their configured mode", () => {
+      const sessionCfg = {
+        resetByType: {
+          direct: { mode: "idle" as const, idleMinutes: 100 },
+          group: { mode: "daily" as const, atHour: 6 },
+        },
+      } as unknown as SessionConfig;
+
+      expect(resolveSessionResetPolicy({ sessionCfg, resetType: "group" }).mode).toBe("daily");
+      expect(resolveSessionResetPolicy({ sessionCfg, resetType: "direct" }).mode).toBe("idle");
+      expect(resolveSessionResetPolicy({ sessionCfg, resetType: "thread" }).mode).toBe(
+        "persistent",
+      );
+    });
+
+    it("persistent sessions always evaluate as fresh", () => {
+      const policy = { mode: "persistent" as const, atHour: 4 };
+      const result = evaluateSessionFreshness({
+        updatedAt: 0,
+        now: Date.now(),
+        policy,
+      });
+      expect(result.fresh).toBe(true);
+      expect(result.dailyResetAt).toBeUndefined();
+      expect(result.idleExpiresAt).toBeUndefined();
+    });
+
+    it("falls back to base session.reset when resetByType omits the type", () => {
+      const sessionCfg = {
+        reset: { mode: "idle" as const, idleMinutes: 60 },
+        resetByType: {
+          direct: { mode: "daily" as const },
+        },
+      } as unknown as SessionConfig;
+
+      const groupPolicy = resolveSessionResetPolicy({ sessionCfg, resetType: "group" });
+      expect(groupPolicy.mode).toBe("idle");
+      expect(groupPolicy.idleMinutes).toBe(60);
     });
   });
 });

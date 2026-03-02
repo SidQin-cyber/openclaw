@@ -641,7 +641,7 @@ describe("initSessionState reset policy", () => {
     expect(result.sessionId).toBe(existingSessionId);
   });
 
-  it("defaults to daily resets when only resetByType is configured", async () => {
+  it("keeps types omitted from resetByType persistent (no silent daily reset)", async () => {
     vi.setSystemTime(new Date(2026, 0, 18, 5, 0, 0));
     const root = await makeCaseDir("openclaw-reset-type-default-");
     const storePath = path.join(root, "sessions.json");
@@ -667,8 +667,8 @@ describe("initSessionState reset policy", () => {
       commandAuthorized: true,
     });
 
-    expect(result.isNewSession).toBe(true);
-    expect(result.sessionId).not.toBe(existingSessionId);
+    expect(result.isNewSession).toBe(false);
+    expect(result.sessionId).toBe(existingSessionId);
   });
 
   it("keeps legacy idleMinutes behavior without reset config", async () => {

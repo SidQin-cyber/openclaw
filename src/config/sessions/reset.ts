@@ -2,7 +2,7 @@ import { normalizeMessageChannel } from "../../utils/message-channel.js";
 import type { SessionConfig, SessionResetConfig } from "../types.base.js";
 import { DEFAULT_IDLE_MINUTES } from "./types.js";
 
-export type SessionResetMode = "daily" | "idle";
+export type SessionResetMode = "daily" | "idle" | "persistent";
 export type SessionResetType = "direct" | "group" | "thread";
 
 export type SessionResetPolicy = {
@@ -97,10 +97,18 @@ export function resolveSessionResetPolicy(params: {
         : undefined));
   const hasExplicitReset = Boolean(baseReset || sessionCfg?.resetByType);
   const legacyIdleMinutes = params.resetOverride ? undefined : sessionCfg?.idleMinutes;
+  // When resetByType is defined but omits this type, treat the type as
+  // persistent (no automatic reset) rather than falling back to "daily".
+  // This prevents silent data loss when upgrading with a partial resetByType.
+  const typeOmittedFromResetByType = !typeReset && sessionCfg?.resetByType != null && !baseReset;
   const mode =
     typeReset?.mode ??
     baseReset?.mode ??
-    (!hasExplicitReset && legacyIdleMinutes != null ? "idle" : DEFAULT_RESET_MODE);
+    (typeOmittedFromResetByType
+      ? "persistent"
+      : !hasExplicitReset && legacyIdleMinutes != null
+        ? "idle"
+        : DEFAULT_RESET_MODE);
   const atHour = normalizeResetAtHour(
     typeReset?.atHour ?? baseReset?.atHour ?? DEFAULT_RESET_AT_HOUR,
   );
@@ -141,6 +149,9 @@ export function evaluateSessionFreshness(params: {
   now: number;
   policy: SessionResetPolicy;
 }): SessionFreshness {
+  if (params.policy.mode === "persistent") {
+    return { fresh: true };
+  }
   const dailyResetAt =
     params.policy.mode === "daily"
       ? resolveDailyResetAtMs(params.now, params.policy.atHour)
