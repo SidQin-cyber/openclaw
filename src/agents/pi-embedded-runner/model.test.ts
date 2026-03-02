@@ -379,4 +379,43 @@ describe("resolveModel", () => {
     expect(result.model).toBeUndefined();
     expect(result.error).toBe("Unknown model: google-antigravity/some-model");
   });
+
+  it("defaults api to openai-completions for inline models without api", () => {
+    const cfg = {
+      models: {
+        providers: {
+          nvidia: {
+            baseUrl: "https://integrate.api.nvidia.com/v1/chat/completions",
+            models: [makeModel("moonshotai/kimi-k2.5")],
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    const result = resolveModel("nvidia", "moonshotai/kimi-k2.5", "/tmp/agent", cfg);
+
+    expect(result.error).toBeUndefined();
+    expect(result.model).toBeDefined();
+    expect(result.model!.api).toBe("openai-completions");
+    expect(result.model!.id).toBe("moonshotai/kimi-k2.5");
+  });
+
+  it("preserves explicit api from inline provider config", () => {
+    const cfg = {
+      models: {
+        providers: {
+          custom: {
+            baseUrl: "https://custom.api.example.com",
+            api: "anthropic-messages",
+            models: [makeModel("custom-model")],
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    const result = resolveModel("custom", "custom-model", "/tmp/agent", cfg);
+
+    expect(result.error).toBeUndefined();
+    expect(result.model!.api).toBe("anthropic-messages");
+  });
 });
