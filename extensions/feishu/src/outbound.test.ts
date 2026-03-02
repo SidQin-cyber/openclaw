@@ -70,6 +70,31 @@ describe("feishuOutbound.sendText local-image auto-convert", () => {
     }
   });
 
+  it("forwards mediaLocalRoots to sendMediaFeishu for local image auto-convert", async () => {
+    const { dir, file } = await createTmpImage();
+    const roots = ["/tmp", "/home/user/workspace"] as const;
+    try {
+      await sendText({
+        cfg: {} as any,
+        to: "chat_1",
+        text: file,
+        accountId: "main",
+        mediaLocalRoots: roots,
+      });
+
+      expect(sendMediaFeishuMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: "chat_1",
+          mediaUrl: file,
+          accountId: "main",
+          mediaLocalRoots: roots,
+        }),
+      );
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps non-path text on the text-send path", async () => {
     await sendText({
       cfg: {} as any,
