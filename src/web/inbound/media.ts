@@ -59,8 +59,20 @@ export async function downloadInboundMedia(
     return undefined;
   }
   try {
+    // Baileys picks thumbnailDirectPath (waveform ~1 KB) over directPath (full
+    // audio) when `url` is absent.  Strip it for audio/ptt messages so the
+    // library falls back to the full-content directPath.
+    let downloadMsg = msg;
+    if (message.audioMessage && "thumbnailDirectPath" in message.audioMessage) {
+      const { thumbnailDirectPath: _stripped, ...audioRest } = message.audioMessage;
+      downloadMsg = {
+        ...msg,
+        message: { ...msg.message, audioMessage: audioRest },
+      } as WAMessage;
+    }
+
     const buffer = await downloadMediaMessage(
-      msg as WAMessage,
+      downloadMsg as WAMessage,
       "buffer",
       {},
       {

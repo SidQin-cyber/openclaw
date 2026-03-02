@@ -64,4 +64,41 @@ describe("downloadInboundMedia", () => {
     expect(result?.mimetype).toBe("application/pdf");
     expect(result?.fileName).toBe("report.pdf");
   });
+
+  it("strips thumbnailDirectPath from audioMessage to prevent waveform download", async () => {
+    downloadMediaMessage.mockClear();
+    const msg = {
+      message: {
+        audioMessage: {
+          ptt: true,
+          mimetype: "audio/ogg; codecs=opus",
+          directPath: "/full-audio-path",
+          thumbnailDirectPath: "/waveform-thumbnail",
+          mediaKey: Buffer.from("key"),
+        },
+      },
+    } as never;
+    await downloadInboundMedia(msg, mockSock);
+    expect(downloadMediaMessage).toHaveBeenCalledOnce();
+    const passedMsg = downloadMediaMessage.mock.calls[0][0];
+    expect(passedMsg.message.audioMessage.directPath).toBe("/full-audio-path");
+    expect(passedMsg.message.audioMessage.thumbnailDirectPath).toBeUndefined();
+  });
+
+  it("does not strip thumbnailDirectPath from non-audio messages", async () => {
+    downloadMediaMessage.mockClear();
+    const msg = {
+      message: {
+        imageMessage: {
+          mimetype: "image/jpeg",
+          directPath: "/image-path",
+          thumbnailDirectPath: "/thumb-path",
+        },
+      },
+    } as never;
+    await downloadInboundMedia(msg, mockSock);
+    expect(downloadMediaMessage).toHaveBeenCalledOnce();
+    const passedMsg = downloadMediaMessage.mock.calls[0][0];
+    expect(passedMsg.message.imageMessage.thumbnailDirectPath).toBe("/thumb-path");
+  });
 });
