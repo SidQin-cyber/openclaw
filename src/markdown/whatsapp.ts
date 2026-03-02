@@ -61,6 +61,14 @@ export function markdownToWhatsApp(text: string): string {
   // 4. Convert ~~strikethrough~~ → ~strikethrough~
   result = result.replace(/~~(.+?)~~/g, "~$1~");
 
+  // 4b. Convert/strip HTML tags for plain-text surfaces
+  result = result.replace(/<br\s*\/?>/gi, "\n");
+  result = result.replace(/<\/?(b|strong)>/gi, "*");
+  result = result.replace(/<\/?(i|em)>/gi, "_");
+  result = result.replace(/<\/?(s|strike|del)>/gi, "~");
+  result = result.replace(/<a\s+[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi, "$2 ($1)");
+  result = result.replace(/<[^>]+>/g, "");
+
   // 5. Restore inline code
   result = result.replace(
     new RegExp(`${escapeRegExp(INLINE_CODE_PLACEHOLDER)}(\\d+)`, "g"),

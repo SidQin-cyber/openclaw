@@ -36,4 +36,29 @@ describe("markdownToWhatsApp", () => {
       "Before ```**bold** and ~~strike~~``` after *real bold*",
     );
   });
+
+  it("converts HTML tags to WhatsApp-compatible text", () => {
+    const cases = [
+      ["converts <br> to newline", "line1<br>line2", "line1\nline2"],
+      ["converts <br/> to newline", "line1<br/>line2", "line1\nline2"],
+      ["converts <br /> to newline", "line1<br />line2", "line1\nline2"],
+      ["converts <b> to bold markers", "<b>bold</b>", "*bold*"],
+      ["converts <strong> to bold markers", "<strong>text</strong>", "*text*"],
+      ["converts <i> to italic markers", "<i>italic</i>", "_italic_"],
+      ["converts <em> to italic markers", "<em>text</em>", "_text_"],
+      ["converts <s> to strikethrough markers", "<s>deleted</s>", "~deleted~"],
+      ["converts <del> to strikethrough markers", "<del>removed</del>", "~removed~"],
+      ["converts <a> to text with URL", '<a href="https://example.com">click</a>', "click (https://example.com)"],
+      ["strips unknown HTML tags", "<div>content</div>", "content"],
+      ["strips self-closing tags", "text<hr/>more", "textmore"],
+    ] as const;
+    for (const [name, input, expected] of cases) {
+      expect(markdownToWhatsApp(input), name).toBe(expected);
+    }
+  });
+
+  it("does not strip HTML tags inside code blocks", () => {
+    const input = "```\n<br>tag\n```";
+    expect(markdownToWhatsApp(input)).toBe(input);
+  });
 });
