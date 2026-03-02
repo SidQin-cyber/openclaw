@@ -273,7 +273,7 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
               `Sandbox boundary checks failed; cannot ${options.action}: ${target.containerPath}`,
             );
       }
-    } else {
+    } else if (guarded.fd >= 0) {
       fs.closeSync(guarded.fd);
     }
 

@@ -43,7 +43,39 @@ describe("openVerifiedFileSync", () => {
         return;
       }
       expect(opened.stat.isDirectory()).toBe(true);
-      fs.closeSync(opened.fd);
+      expect(opened.fd).toBe(-1);
+    });
+  });
+
+  it("returns fd=-1 for directory without calling openSync", async () => {
+    await withTempDir("openclaw-safe-open-", async (root) => {
+      const targetDir = path.join(root, "subdir");
+      await fsp.mkdir(targetDir, { recursive: true });
+
+      const openSyncCalls: string[] = [];
+      const mockFs: Parameters<typeof openVerifiedFileSync>[0]["ioFs"] = {
+        constants: fs.constants,
+        lstatSync: fs.lstatSync.bind(fs),
+        realpathSync: fs.realpathSync.bind(fs),
+        openSync: (...args: Parameters<typeof fs.openSync>) => {
+          openSyncCalls.push(String(args[0]));
+          return fs.openSync(...args);
+        },
+        fstatSync: fs.fstatSync.bind(fs),
+        closeSync: fs.closeSync.bind(fs),
+      };
+
+      const opened = openVerifiedFileSync({
+        filePath: targetDir,
+        allowedType: "directory",
+        ioFs: mockFs,
+      });
+      expect(opened.ok).toBe(true);
+      if (!opened.ok) {
+        return;
+      }
+      expect(opened.fd).toBe(-1);
+      expect(openSyncCalls).toHaveLength(0);
     });
   });
 });

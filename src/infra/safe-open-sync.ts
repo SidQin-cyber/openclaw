@@ -63,6 +63,10 @@ export function openVerifiedFileSync(params: {
       return { ok: false, reason: "validation" };
     }
 
+    if (allowedType === "directory" && preOpenStat.isDirectory()) {
+      return { ok: true, path: realPath, fd: -1, stat: preOpenStat };
+    }
+
     fd = ioFs.openSync(realPath, openReadFlags);
     const openedStat = ioFs.fstatSync(fd);
     if (!isAllowedType(openedStat, allowedType)) {
