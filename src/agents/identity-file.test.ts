@@ -33,4 +33,16 @@ describe("parseIdentityMarkdown", () => {
       avatar: "avatars/openclaw.png",
     });
   });
+
+  it("parses fullwidth colon labels used in CJK locales", () => {
+    const content = `
+- **名称：** 小助手
+- **头像：**avatars/C-3PO.webp
+`;
+    const parsed = parseIdentityMarkdown(content);
+    expect(parsed).toEqual({
+      name: "小助手",
+      avatar: "avatars/C-3PO.webp",
+    });
+  });
 });

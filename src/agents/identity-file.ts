@@ -11,6 +11,16 @@ export type AgentIdentityFile = {
   avatar?: string;
 };
 
+const LABEL_ALIASES: Record<string, string> = {
+  名称: "name",
+  名字: "name",
+  头像: "avatar",
+  表情: "emoji",
+  生物: "creature",
+  氛围: "vibe",
+  主题: "theme",
+};
+
 const IDENTITY_PLACEHOLDER_VALUES = new Set([
   "pick something you like",
   "ai? robot? familiar? ghost in the machine? something weirder?",
@@ -40,11 +50,13 @@ export function parseIdentityMarkdown(content: string): AgentIdentityFile {
   const lines = content.split(/\r?\n/);
   for (const line of lines) {
     const cleaned = line.trim().replace(/^\s*-\s*/, "");
-    const colonIndex = cleaned.indexOf(":");
-    if (colonIndex === -1) {
+    const colonMatch = cleaned.match(/[:：]/);
+    if (!colonMatch || colonMatch.index === undefined) {
       continue;
     }
-    const label = cleaned.slice(0, colonIndex).replace(/[*_]/g, "").trim().toLowerCase();
+    const colonIndex = colonMatch.index;
+    const rawLabel = cleaned.slice(0, colonIndex).replace(/[*_]/g, "").trim().toLowerCase();
+    const label = LABEL_ALIASES[rawLabel] ?? rawLabel;
     const value = cleaned
       .slice(colonIndex + 1)
       .replace(/^[*_]+|[*_]+$/g, "")
