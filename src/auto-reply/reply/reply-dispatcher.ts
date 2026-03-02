@@ -40,6 +40,11 @@ function getHumanDelay(config: HumanDelayConfig | undefined): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+export type ReplyDispatchDeliveredHandler = (
+  payload: ReplyPayload,
+  info: { kind: ReplyDispatchKind; success: boolean; error?: string },
+) => void;
+
 export type ReplyDispatcherOptions = {
   deliver: ReplyDispatchDeliverer;
   responsePrefix?: string;
@@ -53,6 +58,8 @@ export type ReplyDispatcherOptions = {
   onError?: ReplyDispatchErrorHandler;
   // AIDEV-NOTE: onSkip lets channels detect silent/empty drops (e.g. Telegram empty-response fallback).
   onSkip?: ReplyDispatchSkipHandler;
+  /** Called after each delivery attempt (success or failure). */
+  onDelivered?: ReplyDispatchDeliveredHandler;
   /** Human-like delay between block replies for natural rhythm. */
   humanDelay?: HumanDelayConfig;
 };
@@ -156,8 +163,14 @@ export function createReplyDispatcher(options: ReplyDispatcherOptions): ReplyDis
         // Safe: deliver is called inside an async .then() callback, so even a synchronous
         // throw becomes a rejection that flows through .catch()/.finally(), ensuring cleanup.
         await options.deliver(normalized, { kind });
+        options.onDelivered?.(normalized, { kind, success: true });
       })
       .catch((err) => {
+        options.onDelivered?.(normalized, {
+          kind,
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
         options.onError?.(err, { kind });
       })
       .finally(() => {

@@ -4,6 +4,7 @@ import { EmbeddedBlockChunker } from "../../agents/pi-embedded-block-chunker.js"
 import { resolveChunkMode } from "../../auto-reply/chunk.js";
 import { dispatchInboundMessage } from "../../auto-reply/dispatch.js";
 import { formatInboundEnvelope, resolveEnvelopeFormatOptions } from "../../auto-reply/envelope.js";
+import { createMessageSentEmitter } from "../../auto-reply/reply/emit-message-sent.js";
 import {
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
@@ -575,6 +576,12 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
     ...prefixOptions,
     humanDelay: resolveHumanDelayConfig(cfg, route.agentId),
     typingCallbacks,
+    onDelivered: createMessageSentEmitter({
+      sessionKey: persistedSessionKey,
+      channel: "discord",
+      to: deliverTarget,
+      accountId: route.accountId,
+    }),
     deliver: async (payload: ReplyPayload, info) => {
       const isFinal = info.kind === "final";
       if (payload.isReasoning) {

@@ -3,6 +3,8 @@ import type { LogLevel } from "../../logging/levels.js";
 type ShouldLogVerbose = typeof import("../../globals.js").shouldLogVerbose;
 type DispatchReplyWithBufferedBlockDispatcher =
   typeof import("../../auto-reply/reply/provider-dispatcher.js").dispatchReplyWithBufferedBlockDispatcher;
+type CreateMessageSentEmitter =
+  typeof import("../../auto-reply/reply/emit-message-sent.js").createMessageSentEmitter;
 type CreateReplyDispatcherWithTyping =
   typeof import("../../auto-reply/reply/reply-dispatcher.js").createReplyDispatcherWithTyping;
 type ResolveEffectiveMessagesConfig =
@@ -228,6 +230,7 @@ export type PluginRuntime = {
     reply: {
       dispatchReplyWithBufferedBlockDispatcher: DispatchReplyWithBufferedBlockDispatcher;
       createReplyDispatcherWithTyping: CreateReplyDispatcherWithTyping;
+      createMessageSentEmitter: CreateMessageSentEmitter;
       resolveEffectiveMessagesConfig: ResolveEffectiveMessagesConfig;
       resolveHumanDelayConfig: ResolveHumanDelayConfig;
       dispatchReplyFromConfig: DispatchReplyFromConfig;

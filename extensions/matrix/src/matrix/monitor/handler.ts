@@ -636,6 +636,12 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
           ...prefixOptions,
           humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
           typingCallbacks,
+          onDelivered: core.channel.reply.createMessageSentEmitter({
+            sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+            channel: "matrix",
+            to: roomId,
+            accountId: route.accountId,
+          }),
           deliver: async (payload) => {
             await deliverMatrixReplies({
               replies: [payload],

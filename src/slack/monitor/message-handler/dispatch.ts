@@ -1,5 +1,6 @@
 import { resolveHumanDelayConfig } from "../../../agents/identity.js";
 import { dispatchInboundMessage } from "../../../auto-reply/dispatch.js";
+import { createMessageSentEmitter } from "../../../auto-reply/reply/emit-message-sent.js";
 import { clearHistoryEntriesIfEnabled } from "../../../auto-reply/reply/history.js";
 import { createReplyDispatcherWithTyping } from "../../../auto-reply/reply/reply-dispatcher.js";
 import type { ReplyPayload } from "../../../auto-reply/types.js";
@@ -263,6 +264,12 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
     ...prefixOptions,
     humanDelay: resolveHumanDelayConfig(cfg, route.agentId),
     typingCallbacks,
+    onDelivered: createMessageSentEmitter({
+      sessionKey: route.mainSessionKey,
+      channel: "slack",
+      to: `user:${message.user}`,
+      accountId: route.accountId,
+    }),
     deliver: async (payload) => {
       if (useStreaming) {
         await deliverWithStreaming(payload);

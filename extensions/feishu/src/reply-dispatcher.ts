@@ -48,6 +48,8 @@ export type CreateFeishuReplyDispatcherParams = {
   rootId?: string;
   mentionTargets?: MentionTarget[];
   accountId?: string;
+  /** Session key used for emitting message:sent hooks after delivery. */
+  sessionKey?: string;
   /** Epoch ms when the inbound message was created. Used to suppress typing
    *  indicators on old/replayed messages after context compaction (#30418). */
   messageCreateTimeMs?: number;
@@ -185,6 +187,16 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       responsePrefix: prefixContext.responsePrefix,
       responsePrefixContextProvider: prefixContext.responsePrefixContextProvider,
       humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, agentId),
+      ...(params.sessionKey
+        ? {
+            onDelivered: core.channel.reply.createMessageSentEmitter({
+              sessionKey: params.sessionKey,
+              channel: "feishu",
+              to: chatId,
+              accountId,
+            }),
+          }
+        : {}),
       onReplyStart: () => {
         if (streamingEnabled && renderMode === "card") {
           startStreaming();

@@ -753,6 +753,12 @@ export async function monitorMattermostProvider(opts: MonitorMattermostOpts = {}
         ...prefixOptions,
         humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
         typingCallbacks,
+        onDelivered: core.channel.reply.createMessageSentEmitter({
+          sessionKey: sessionKey,
+          channel: "mattermost",
+          to: channelId,
+          accountId: account.accountId,
+        }),
         deliver: async (payload: ReplyPayload) => {
           const mediaUrls = payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []);
           const text = core.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);

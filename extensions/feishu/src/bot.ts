@@ -1185,6 +1185,7 @@ export async function handleFeishuMessage(params: {
       rootId: ctx.rootId,
       mentionTargets: ctx.mentionTargets,
       accountId: account.accountId,
+      sessionKey: route.sessionKey,
       messageCreateTimeMs,
     });
 

@@ -1,5 +1,6 @@
 import type { WebhookRequestBody } from "@line/bot-sdk";
 import { chunkMarkdownText } from "../auto-reply/chunk.js";
+import { createMessageSentEmitter } from "../auto-reply/reply/emit-message-sent.js";
 import { dispatchReplyWithBufferedBlockDispatcher } from "../auto-reply/reply/provider-dispatcher.js";
 import { createReplyPrefixOptions } from "../channels/reply-prefix.js";
 import type { OpenClawConfig } from "../config/config.js";
@@ -204,6 +205,12 @@ export async function monitorLineProvider(
           cfg: config,
           dispatcherOptions: {
             ...prefixOptions,
+            onDelivered: createMessageSentEmitter({
+              sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+              channel: "line",
+              to: ctxPayload.To ?? "",
+              accountId: route.accountId,
+            }),
             deliver: async (payload, _info) => {
               const lineData = (payload.channelData?.line as LineChannelData | undefined) ?? {};
 

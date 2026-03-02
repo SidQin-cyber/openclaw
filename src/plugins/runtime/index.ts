@@ -28,6 +28,7 @@ import {
   resolveInboundDebounceMs,
 } from "../../auto-reply/inbound-debounce.js";
 import { dispatchReplyFromConfig } from "../../auto-reply/reply/dispatch-from-config.js";
+import { createMessageSentEmitter } from "../../auto-reply/reply/emit-message-sent.js";
 import { finalizeInboundContext } from "../../auto-reply/reply/inbound-context.js";
 import {
   buildMentionRegexes,
@@ -302,6 +303,7 @@ function createRuntimeChannel(): PluginRuntime["channel"] {
     reply: {
       dispatchReplyWithBufferedBlockDispatcher,
       createReplyDispatcherWithTyping,
+      createMessageSentEmitter,
       resolveEffectiveMessagesConfig,
       resolveHumanDelayConfig,
       dispatchReplyFromConfig,

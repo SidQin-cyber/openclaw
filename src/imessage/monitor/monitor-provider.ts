@@ -7,6 +7,7 @@ import {
   createInboundDebouncer,
   resolveInboundDebounceMs,
 } from "../../auto-reply/inbound-debounce.js";
+import { createMessageSentEmitter } from "../../auto-reply/reply/emit-message-sent.js";
 import {
   clearHistoryEntriesIfEnabled,
   DEFAULT_GROUP_HISTORY_LIMIT,
@@ -357,6 +358,12 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
     const dispatcher = createReplyDispatcher({
       ...prefixOptions,
       humanDelay: resolveHumanDelayConfig(cfg, decision.route.agentId),
+      onDelivered: createMessageSentEmitter({
+        sessionKey: ctxPayload.SessionKey ?? decision.route.sessionKey,
+        channel: "imessage",
+        to: ctxPayload.To ?? "",
+        accountId: accountInfo.accountId,
+      }),
       deliver: async (payload) => {
         const target = ctxPayload.To;
         if (!target) {

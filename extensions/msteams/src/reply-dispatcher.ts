@@ -40,6 +40,8 @@ export function createMSTeamsReplyDispatcher(params: {
   tokenProvider?: MSTeamsAccessTokenProvider;
   /** SharePoint site ID for file uploads in group chats/channels */
   sharePointSiteId?: string;
+  /** Session key for emitting message:sent hooks. */
+  sessionKey?: string;
 }) {
   const core = getMSTeamsRuntime();
   const sendTypingIndicator = async () => {
@@ -68,6 +70,16 @@ export function createMSTeamsReplyDispatcher(params: {
     core.channel.reply.createReplyDispatcherWithTyping({
       ...prefixOptions,
       humanDelay: core.channel.reply.resolveHumanDelayConfig(params.cfg, params.agentId),
+      ...(params.sessionKey
+        ? {
+            onDelivered: core.channel.reply.createMessageSentEmitter({
+              sessionKey: params.sessionKey,
+              channel: "msteams",
+              to: params.conversationRef.conversation?.id ?? "",
+              accountId: params.accountId,
+            }),
+          }
+        : {}),
       typingCallbacks,
       deliver: async (payload) => {
         const tableMode = core.channel.text.resolveMarkdownTableMode({

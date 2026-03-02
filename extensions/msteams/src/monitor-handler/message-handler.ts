@@ -548,6 +548,7 @@ export function createMSTeamsMessageHandler(deps: MSTeamsMessageHandlerDeps) {
       context,
       replyStyle,
       textLimit,
+      sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
       onSentMessageIds: (ids) => {
         for (const id of ids) {
           recordMSTeamsSentMessage(conversationId, id);

@@ -7,6 +7,7 @@ import {
 } from "../agents/model-catalog.js";
 import { resolveDefaultModelForAgent } from "../agents/model-selection.js";
 import { resolveChunkMode } from "../auto-reply/chunk.js";
+import { createMessageSentEmitter } from "../auto-reply/reply/emit-message-sent.js";
 import { clearHistoryEntriesIfEnabled } from "../auto-reply/reply/history.js";
 import { dispatchReplyWithBufferedBlockDispatcher } from "../auto-reply/reply/provider-dispatcher.js";
 import type { ReplyPayload } from "../auto-reply/types.js";
@@ -465,6 +466,12 @@ export const dispatchTelegramMessage = async ({
       dispatcherOptions: {
         ...prefixOptions,
         typingCallbacks,
+        onDelivered: createMessageSentEmitter({
+          sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+          channel: "telegram",
+          to: ctxPayload.To ?? "",
+          accountId: route.accountId,
+        }),
         deliver: async (payload, info) => {
           const previewButtons = (
             payload.channelData?.telegram as { buttons?: TelegramInlineButtons } | undefined

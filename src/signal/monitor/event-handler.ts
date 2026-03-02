@@ -10,6 +10,7 @@ import {
   createInboundDebouncer,
   resolveInboundDebounceMs,
 } from "../../auto-reply/inbound-debounce.js";
+import { createMessageSentEmitter } from "../../auto-reply/reply/emit-message-sent.js";
 import {
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
@@ -228,6 +229,12 @@ export function createSignalEventHandler(deps: SignalEventHandlerDeps) {
       ...prefixOptions,
       humanDelay: resolveHumanDelayConfig(deps.cfg, route.agentId),
       typingCallbacks,
+      onDelivered: createMessageSentEmitter({
+        sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+        channel: "signal",
+        to: ctxPayload.To ?? "",
+        accountId: deps.accountId,
+      }),
       deliver: async (payload) => {
         await deps.deliverReplies({
           replies: [payload],
