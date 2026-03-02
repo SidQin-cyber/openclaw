@@ -477,6 +477,7 @@ export async function runAgentTurnWithFallback(params: {
       const isContextOverflow = isLikelyContextOverflowError(message);
       const isCompactionFailure = isCompactionFailureError(message);
       const isSessionCorruption = /function call turn comes immediately after/i.test(message);
+      const isToolUseIdCorruption = /unexpected tool_use_id found in tool_result/i.test(message);
       const isRoleOrderingError = /incorrect role information|roles must alternate/i.test(message);
       const isTransientHttp = isTransientHttpError(message);
 
@@ -546,6 +547,45 @@ export async function runAgentTurnWithFallback(params: {
           kind: "final",
           payload: {
             text: "⚠️ Session history was corrupted. I've reset the conversation - please try again!",
+          },
+        };
+      }
+
+      if (
+        isToolUseIdCorruption &&
+        params.sessionKey &&
+        params.activeSessionStore &&
+        params.storePath
+      ) {
+        const sessionKey = params.sessionKey;
+        const corruptedSessionId = params.getActiveSessionEntry()?.sessionId;
+        defaultRuntime.error(
+          `Session transcript corrupted (orphaned tool_result without matching tool_use). Resetting session: ${params.sessionKey}`,
+        );
+
+        try {
+          if (corruptedSessionId) {
+            const transcriptPath = resolveSessionTranscriptPath(corruptedSessionId);
+            try {
+              fs.unlinkSync(transcriptPath);
+            } catch {
+              // Ignore if file doesn't exist
+            }
+          }
+          delete params.activeSessionStore[sessionKey];
+          await updateSessionStore(params.storePath, (store) => {
+            delete store[sessionKey];
+          });
+        } catch (cleanupErr) {
+          defaultRuntime.error(
+            `Failed to reset corrupted session ${params.sessionKey}: ${String(cleanupErr)}`,
+          );
+        }
+
+        return {
+          kind: "final",
+          payload: {
+            text: "⚠️ Session transcript was corrupted (tool call mismatch). I've reset the conversation - please try again!",
           },
         };
       }

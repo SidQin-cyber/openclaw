@@ -188,6 +188,24 @@ describe("sanitizeToolUseResultPairing", () => {
     expect(result.messages[1]?.role).toBe("user");
   });
 
+  it("skips tool call extraction for assistant messages with stopReason 'terminated'", () => {
+    const input = [
+      {
+        role: "assistant",
+        content: [{ type: "toolCall", id: "call_terminated", name: "exec", arguments: {} }],
+        stopReason: "terminated",
+      },
+      { role: "user", content: "session was terminated mid-stream" },
+    ] as unknown as AgentMessage[];
+
+    const result = repairToolUseResultPairing(input);
+
+    expect(result.added).toHaveLength(0);
+    expect(result.messages).toHaveLength(2);
+    expect(result.messages[0]?.role).toBe("assistant");
+    expect(result.messages[1]?.role).toBe("user");
+  });
+
   it("still repairs tool results for normal assistant messages with stopReason 'toolUse'", () => {
     // Normal tool calls (stopReason: "toolUse" or "stop") should still be repaired
     const input = [

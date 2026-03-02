@@ -203,15 +203,15 @@ export function installSessionToolResultGuard(
       return originalAppend(persisted as never);
     }
 
-    // Skip tool call extraction for aborted/errored assistant messages.
-    // When stopReason is "error" or "aborted", the tool_use blocks may be incomplete
-    // and should not have synthetic tool_results created. Creating synthetic results
-    // for incomplete tool calls causes API 400 errors:
-    // "unexpected tool_use_id found in tool_result blocks"
-    // This matches the behavior in repairToolUseResultPairing (session-transcript-repair.ts)
+    // Skip tool call extraction for aborted/errored/terminated assistant messages.
+    // When stopReason indicates an abnormal end, the tool_use blocks may be
+    // incomplete and should not have synthetic tool_results created.
+    // This matches the behavior in repairToolUseResultPairing (session-transcript-repair.ts).
     const stopReason = (nextMessage as { stopReason?: string }).stopReason;
+    const skipToolExtraction =
+      stopReason === "aborted" || stopReason === "error" || stopReason === "terminated";
     const toolCalls =
-      nextRole === "assistant" && stopReason !== "aborted" && stopReason !== "error"
+      nextRole === "assistant" && !skipToolExtraction
         ? extractToolCallsFromAssistant(nextMessage as Extract<AgentMessage, { role: "assistant" }>)
         : [];
 
