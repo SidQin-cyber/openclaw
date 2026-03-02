@@ -164,6 +164,7 @@ export function createExecTool(
       ? defaults.timeoutSec
       : 1800;
   const defaultPathPrepend = normalizePathPrepend(defaults?.pathPrepend);
+  const skillsEnv = defaults?.skillsEnv ?? {};
   const {
     safeBins,
     safeBinProfiles,
@@ -369,12 +370,13 @@ export function createExecTool(
         validateHostEnv(params.env);
       }
 
-      const mergedEnv = params.env ? { ...baseEnv, ...params.env } : baseEnv;
+      const mergedEnv = { ...baseEnv, ...skillsEnv, ...params.env };
 
       const env = sandbox
         ? buildSandboxEnv({
             defaultPath: DEFAULT_PATH,
             paramsEnv: params.env,
+            skillsEnv,
             sandboxEnv: sandbox.env,
             containerWorkdir: containerWorkdir ?? sandbox.containerWorkdir,
           })

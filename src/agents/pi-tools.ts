@@ -179,6 +179,25 @@ export const __testing = {
   assertRequiredParams,
 } as const;
 
+function resolveSkillsEnvFromConfig(config?: OpenClawConfig): Record<string, string> {
+  const entries = config?.skills?.entries;
+  if (!entries || typeof entries !== "object") {
+    return {};
+  }
+  const merged: Record<string, string> = {};
+  for (const entry of Object.values(entries)) {
+    if (entry?.env && typeof entry.env === "object") {
+      for (const [key, value] of Object.entries(entry.env)) {
+        const k = key.trim();
+        if (k && typeof value === "string" && value) {
+          merged[k] = value;
+        }
+      }
+    }
+  }
+  return merged;
+}
+
 export function createOpenClawCodingTools(options?: {
   agentId?: string;
   exec?: ExecToolDefaults & ProcessToolDefaults;
@@ -398,6 +417,7 @@ export function createOpenClawCodingTools(options?: {
     notifyOnExit: options?.exec?.notifyOnExit ?? execConfig.notifyOnExit,
     notifyOnExitEmptySuccess:
       options?.exec?.notifyOnExitEmptySuccess ?? execConfig.notifyOnExitEmptySuccess,
+    skillsEnv: resolveSkillsEnvFromConfig(options?.config),
     sandbox: sandbox
       ? {
           containerName: sandbox.containerName,

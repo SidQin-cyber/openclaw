@@ -4,6 +4,7 @@ import { peekSystemEvents, resetSystemEventsForTest } from "../infra/system-even
 import { captureEnv } from "../test-utils/env.js";
 import { getFinishedSession, resetProcessRegistryForTests } from "./bash-process-registry.js";
 import { createExecTool, createProcessTool } from "./bash-tools.js";
+import { buildSandboxEnv } from "./bash-tools.shared.js";
 import { resolveShellFromPath, sanitizeBinaryOutput } from "./shell-utils.js";
 
 const isWin = process.platform === "win32";
@@ -545,5 +546,47 @@ describe("exec PATH handling", () => {
     for (const index of prependIndexes) {
       expect(index).toBeLessThan(baseIndex);
     }
+  });
+});
+
+describe("buildSandboxEnv skillsEnv", () => {
+  it("includes skillsEnv in sandbox environment", () => {
+    const env = buildSandboxEnv({
+      defaultPath: "/usr/bin",
+      skillsEnv: { GOG_KEYRING_PASSWORD: "secret", GOG_ACCOUNT: "test@example.com" },
+      containerWorkdir: "/workspace",
+    });
+    expect(env.GOG_KEYRING_PASSWORD).toBe("secret");
+    expect(env.GOG_ACCOUNT).toBe("test@example.com");
+    expect(env.PATH).toBe("/usr/bin");
+  });
+
+  it("paramsEnv overrides skillsEnv", () => {
+    const env = buildSandboxEnv({
+      defaultPath: "/usr/bin",
+      skillsEnv: { API_KEY: "from-skill" },
+      paramsEnv: { API_KEY: "from-params" },
+      containerWorkdir: "/workspace",
+    });
+    expect(env.API_KEY).toBe("from-params");
+  });
+
+  it("sandboxEnv is overridden by skillsEnv", () => {
+    const env = buildSandboxEnv({
+      defaultPath: "/usr/bin",
+      sandboxEnv: { SHARED: "sandbox-value" },
+      skillsEnv: { SHARED: "skill-value" },
+      containerWorkdir: "/workspace",
+    });
+    expect(env.SHARED).toBe("skill-value");
+  });
+
+  it("works without skillsEnv", () => {
+    const env = buildSandboxEnv({
+      defaultPath: "/usr/bin",
+      containerWorkdir: "/workspace",
+    });
+    expect(env.PATH).toBe("/usr/bin");
+    expect(env.HOME).toBe("/workspace");
   });
 });
