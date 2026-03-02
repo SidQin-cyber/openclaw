@@ -39,6 +39,12 @@ export function normalizeFeishuTarget(raw: string): string | null {
   if (lowered.startsWith("open_id:")) {
     return withoutProvider.slice("open_id:".length).trim() || null;
   }
+  if (lowered.startsWith("group:")) {
+    return withoutProvider.slice("group:".length).trim() || null;
+  }
+  if (lowered.startsWith("channel:")) {
+    return withoutProvider.slice("channel:".length).trim() || null;
+  }
 
   return withoutProvider;
 }

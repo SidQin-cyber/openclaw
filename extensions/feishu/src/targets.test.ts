@@ -28,6 +28,15 @@ describe("normalizeFeishuTarget", () => {
   it("accepts provider-prefixed raw ids", () => {
     expect(normalizeFeishuTarget("feishu:ou_123")).toBe("ou_123");
   });
+
+  it("strips group: prefix used by session-key derived targets", () => {
+    expect(normalizeFeishuTarget("group:oc_123")).toBe("oc_123");
+    expect(normalizeFeishuTarget("feishu:group:oc_456")).toBe("oc_456");
+  });
+
+  it("strips channel: prefix used by bound delivery targets", () => {
+    expect(normalizeFeishuTarget("channel:oc_789")).toBe("oc_789");
+  });
 });
 
 describe("looksLikeFeishuId", () => {
