@@ -3,6 +3,7 @@ import path from "node:path";
 import { openBoundaryFile } from "../../infra/boundary-file-read.js";
 
 const MAX_CONTEXT_CHARS = 3000;
+const MAX_READ_FILES_CHARS = 8000;
 
 /**
  * Read critical sections from workspace AGENTS.md for post-compaction injection.
@@ -52,6 +53,58 @@ export async function readPostCompactionContext(workspaceDir: string): Promise<s
   } catch {
     return null;
   }
+}
+
+/**
+ * Read configured files from the workspace after compaction.
+ * Each file path is resolved relative to workspaceDir with boundary checks.
+ */
+export async function readPostCompactionFiles(
+  workspaceDir: string,
+  readFiles: string[],
+): Promise<string | null> {
+  if (!readFiles || readFiles.length === 0) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  let totalChars = 0;
+
+  for (const relPath of readFiles) {
+    const trimmed = relPath.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const resolved = path.resolve(workspaceDir, trimmed);
+    if (!resolved.startsWith(path.resolve(workspaceDir))) {
+      continue;
+    }
+    try {
+      const content = await fs.promises.readFile(resolved, "utf-8");
+      const safe =
+        totalChars + content.length > MAX_READ_FILES_CHARS
+          ? content.slice(0, MAX_READ_FILES_CHARS - totalChars) + "\n...[truncated]..."
+          : content;
+      parts.push(`### ${trimmed}\n\n${safe}`);
+      totalChars += safe.length;
+      if (totalChars >= MAX_READ_FILES_CHARS) {
+        break;
+      }
+    } catch {
+      // File not found or unreadable — skip silently.
+    }
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return (
+    "[Post-compaction file restore]\n\n" +
+    "The following files were automatically re-loaded after compaction " +
+    "(configured via compaction.onCompact.readFiles):\n\n" +
+    parts.join("\n\n")
+  );
 }
 
 /**

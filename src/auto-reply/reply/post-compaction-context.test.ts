@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readPostCompactionContext } from "./post-compaction-context.js";
+import { readPostCompactionContext, readPostCompactionFiles } from "./post-compaction-context.js";
 
 describe("readPostCompactionContext", () => {
   const tmpDir = path.join("/tmp", "test-post-compaction-" + Date.now());
@@ -190,4 +190,54 @@ Never do Y.
       expect(result).toBeNull();
     },
   );
+});
+
+describe("readPostCompactionFiles", () => {
+  const tmpDir = path.join("/tmp", "test-post-compaction-files-" + Date.now());
+
+  beforeEach(() => {
+    fs.mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns null for empty readFiles", async () => {
+    expect(await readPostCompactionFiles(tmpDir, [])).toBeNull();
+  });
+
+  it("reads configured files and includes their content", async () => {
+    fs.writeFileSync(path.join(tmpDir, "TASK_INIT.md"), "# Task Init\nDo startup checks.");
+    fs.writeFileSync(path.join(tmpDir, "HEARTBEAT.md"), "# Heartbeat\nCheck email every 30m.");
+
+    const result = await readPostCompactionFiles(tmpDir, ["TASK_INIT.md", "HEARTBEAT.md"]);
+    expect(result).not.toBeNull();
+    expect(result).toContain("[Post-compaction file restore]");
+    expect(result).toContain("TASK_INIT.md");
+    expect(result).toContain("Do startup checks.");
+    expect(result).toContain("HEARTBEAT.md");
+    expect(result).toContain("Check email every 30m.");
+  });
+
+  it("skips missing files silently", async () => {
+    fs.writeFileSync(path.join(tmpDir, "EXISTS.md"), "content here");
+    const result = await readPostCompactionFiles(tmpDir, ["EXISTS.md", "MISSING.md"]);
+    expect(result).not.toBeNull();
+    expect(result).toContain("EXISTS.md");
+    expect(result).toContain("content here");
+    expect(result).not.toContain("MISSING.md");
+  });
+
+  it("rejects path traversal attempts", async () => {
+    fs.writeFileSync(path.join(tmpDir, "safe.md"), "safe content");
+    const result = await readPostCompactionFiles(tmpDir, ["../../../etc/passwd", "safe.md"]);
+    expect(result).not.toBeNull();
+    expect(result).toContain("safe.md");
+    expect(result).not.toContain("passwd");
+  });
+
+  it("returns null when all files are missing", async () => {
+    expect(await readPostCompactionFiles(tmpDir, ["a.md", "b.md"])).toBeNull();
+  });
 });

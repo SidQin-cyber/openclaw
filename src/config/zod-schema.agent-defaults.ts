@@ -109,6 +109,12 @@ export const AgentDefaultsSchema = z
           })
           .strict()
           .optional(),
+        onCompact: z
+          .object({
+            readFiles: z.array(z.string()).optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),

@@ -299,6 +299,13 @@ export type AgentCompactionConfig = {
   identifierInstructions?: string;
   /** Pre-compaction memory flush (agentic turn). Default: enabled. */
   memoryFlush?: AgentCompactionMemoryFlushConfig;
+  /** Post-compaction actions. */
+  onCompact?: AgentCompactionOnCompactConfig;
+};
+
+export type AgentCompactionOnCompactConfig = {
+  /** Workspace-relative file paths to re-read and inject into context after compaction. */
+  readFiles?: string[];
 };
 
 export type AgentCompactionMemoryFlushConfig = {

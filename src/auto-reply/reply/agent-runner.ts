@@ -49,7 +49,7 @@ import { createAudioAsVoiceBuffer, createBlockReplyPipeline } from "./block-repl
 import { resolveEffectiveBlockStreamingConfig } from "./block-streaming.js";
 import { createFollowupRunner } from "./followup-runner.js";
 import { resolveOriginMessageProvider, resolveOriginMessageTo } from "./origin-routing.js";
-import { readPostCompactionContext } from "./post-compaction-context.js";
+import { readPostCompactionContext, readPostCompactionFiles } from "./post-compaction-context.js";
 import { resolveActiveRunQueueAction } from "./queue-policy.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
 import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-threading.js";
@@ -672,9 +672,18 @@ export async function runReplyAgent(params: {
               enqueueSystemEvent(contextContent, { sessionKey });
             }
           })
-          .catch(() => {
-            // Silent failure — post-compaction context is best-effort
-          });
+          .catch(() => {});
+
+        const onCompactReadFiles = cfg?.agents?.defaults?.compaction?.onCompact?.readFiles;
+        if (Array.isArray(onCompactReadFiles) && onCompactReadFiles.length > 0) {
+          readPostCompactionFiles(workspaceDir, onCompactReadFiles)
+            .then((filesContent) => {
+              if (filesContent) {
+                enqueueSystemEvent(filesContent, { sessionKey });
+              }
+            })
+            .catch(() => {});
+        }
       }
 
       if (verboseEnabled) {
