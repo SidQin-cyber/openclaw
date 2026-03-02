@@ -28,6 +28,69 @@ const DISCORD_POLL_MAX_DURATION_HOURS = 32 * 24;
 const DISCORD_MISSING_PERMISSIONS = 50013;
 const DISCORD_CANNOT_DM = 50007;
 
+/**
+ * Convert bare newlines to Markdown hard breaks for Discord rendering.
+ *
+ * Discord's message renderer treats a single `\n` as a soft break, which
+ * collapses to a space.  Two trailing spaces before `\n` produce a hard
+ * break (`<br>`).  This function adds those trailing spaces where needed
+ * while preserving:
+ *  - fenced code blocks (``` or ~~~)
+ *  - lines that are already followed by a blank line (paragraph break)
+ *  - lines that already end with two trailing spaces
+ */
+export function applyDiscordHardBreaks(text: string): string {
+  if (!text) {
+    return text;
+  }
+
+  const lines = text.split("\n");
+  const result: string[] = [];
+  let insideCodeFence = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Toggle code-fence state on opening/closing fences.
+    if (/^\s*(`{3,}|~{3,})/.test(line)) {
+      insideCodeFence = !insideCodeFence;
+      result.push(line);
+      continue;
+    }
+
+    // Never touch lines inside fenced code blocks.
+    if (insideCodeFence) {
+      result.push(line);
+      continue;
+    }
+
+    // Last line — nothing follows, no hard break needed.
+    if (i === lines.length - 1) {
+      result.push(line);
+      continue;
+    }
+
+    const nextLine = lines[i + 1];
+
+    // If the next line is blank this is already a paragraph break.
+    if (nextLine.trim() === "") {
+      result.push(line);
+      continue;
+    }
+
+    // If the line already ends with two+ trailing spaces, leave it alone.
+    if (line.endsWith("  ")) {
+      result.push(line);
+      continue;
+    }
+
+    // Append two trailing spaces to force a hard break.
+    result.push(line + "  ");
+  }
+
+  return result.join("\n");
+}
+
 type DiscordRequest = RetryRunner;
 
 export type DiscordSendComponentFactory = (text: string) => TopLevelComponents[];
@@ -320,7 +383,7 @@ export function buildDiscordMessagePayload(params: {
   const hasV2 = hasV2Components(params.components);
   const trimmed = params.text.trim();
   if (!hasV2 && trimmed) {
-    payload.content = params.text;
+    payload.content = applyDiscordHardBreaks(params.text);
   }
   if (params.components?.length) {
     payload.components = params.components;

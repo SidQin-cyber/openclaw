@@ -16,6 +16,7 @@ import type { PollInput } from "../polls.js";
 import { loadWebMediaRaw } from "../web/media.js";
 import { resolveDiscordAccount } from "./accounts.js";
 import {
+  applyDiscordHardBreaks,
   buildDiscordMessagePayload,
   buildDiscordSendError,
   buildDiscordTextChunks,
@@ -357,7 +358,7 @@ export async function sendWebhookMessageDiscord(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        content: text,
+        content: applyDiscordHardBreaks(text),
         username: opts.username?.trim() || undefined,
         avatar_url: opts.avatarUrl?.trim() || undefined,
         ...(messageReference ? { message_reference: messageReference } : {}),
