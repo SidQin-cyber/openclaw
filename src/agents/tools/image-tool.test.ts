@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { ModelDefinitionConfig } from "../../config/types.models.js";
 import { withFetchPreconnect } from "../../test-utils/fetch-mock.js";
+import { buildInlineProviderModels } from "../pi-embedded-runner/model.js";
 import { createOpenClawCodingTools } from "../pi-tools.js";
 import { createHostSandboxFsBridge } from "../test-helpers/host-sandbox-fs-bridge.js";
 import { createUnsafeMountedSandbox } from "../test-helpers/unsafe-mounted-sandbox.js";
@@ -853,5 +854,43 @@ describe("image tool response validation", () => {
       } as never,
     });
     expect(text).toBe("hello");
+  });
+});
+
+describe("buildInlineProviderModels preserves image input capability", () => {
+  it("includes input field from custom provider models", () => {
+    const providers = {
+      bailian: {
+        baseUrl: "https://coding.dashscope.aliyuncs.com/v1",
+        api: "openai-completions" as const,
+        models: [
+          { id: "qwen3.5-plus", input: ["text", "image"], contextWindow: 128_000, maxTokens: 8192 },
+          { id: "qwen3.5-turbo", input: ["text"], contextWindow: 128_000, maxTokens: 8192 },
+        ],
+      },
+    };
+    const inlineModels = buildInlineProviderModels(providers as never);
+    expect(inlineModels).toHaveLength(2);
+
+    const vision = inlineModels.find((m) => m.id === "qwen3.5-plus");
+    expect(vision?.input).toEqual(["text", "image"]);
+    expect(vision?.provider).toBe("bailian");
+    expect(vision?.baseUrl).toBe("https://coding.dashscope.aliyuncs.com/v1");
+
+    const textOnly = inlineModels.find((m) => m.id === "qwen3.5-turbo");
+    expect(textOnly?.input).toEqual(["text"]);
+  });
+
+  it("inherits provider-level api when model omits it", () => {
+    const providers = {
+      custom: {
+        baseUrl: "https://example.com/v1",
+        api: "openai-completions" as const,
+        models: [{ id: "v-1", input: ["text", "image"], contextWindow: 32_000, maxTokens: 4096 }],
+      },
+    };
+    const [model] = buildInlineProviderModels(providers as never);
+    expect(model.api).toBe("openai-completions");
+    expect(model.provider).toBe("custom");
   });
 });

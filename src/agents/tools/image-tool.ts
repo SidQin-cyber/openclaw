@@ -4,6 +4,9 @@ import type { OpenClawConfig } from "../../config/config.js";
 import { resolveUserPath } from "../../utils.js";
 import { loadWebMedia } from "../../web/media.js";
 import { minimaxUnderstandImage } from "../minimax-vlm.js";
+import { normalizeModelCompat } from "../model-compat.js";
+import { normalizeProviderId } from "../model-selection.js";
+import { buildInlineProviderModels } from "../pi-embedded-runner/model.js";
 import {
   coerceImageAssistantText,
   coerceImageModelConfig,
@@ -217,7 +220,23 @@ async function runImagePrompt(params: {
     cfg: effectiveCfg,
     modelOverride: params.modelOverride,
     run: async (provider, modelId) => {
-      const model = resolveModelFromRegistry({ modelRegistry, provider, modelId });
+      let model: ReturnType<typeof resolveModelFromRegistry> | null = null;
+      try {
+        model = resolveModelFromRegistry({ modelRegistry, provider, modelId });
+      } catch {
+        const providers = effectiveCfg?.models?.providers ?? {};
+        const inlineModels = buildInlineProviderModels(providers);
+        const np = normalizeProviderId(provider);
+        const inlineMatch = inlineModels.find(
+          (e) => normalizeProviderId(e.provider) === np && e.id === modelId,
+        );
+        if (inlineMatch) {
+          model = normalizeModelCompat(inlineMatch as ReturnType<typeof resolveModelFromRegistry>);
+        }
+      }
+      if (!model) {
+        throw new Error(`Unknown model: ${provider}/${modelId}`);
+      }
       if (!model.input?.includes("image")) {
         throw new Error(`Model does not support images: ${provider}/${modelId}`);
       }

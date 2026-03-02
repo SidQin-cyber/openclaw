@@ -2,7 +2,10 @@ import type { Api, Context, Model } from "@mariozechner/pi-ai";
 import { complete } from "@mariozechner/pi-ai";
 import { minimaxUnderstandImage } from "../../agents/minimax-vlm.js";
 import { getApiKeyForModel, requireApiKey } from "../../agents/model-auth.js";
+import { normalizeModelCompat } from "../../agents/model-compat.js";
+import { normalizeProviderId } from "../../agents/model-selection.js";
 import { ensureOpenClawModelsJson } from "../../agents/models-config.js";
+import { buildInlineProviderModels } from "../../agents/pi-embedded-runner/model.js";
 import { discoverAuthStorage, discoverModels } from "../../agents/pi-model-discovery.js";
 import { coerceImageAssistantText } from "../../agents/tools/image-tool.helpers.js";
 import type { ImageDescriptionRequest, ImageDescriptionResult } from "../types.js";
@@ -13,7 +16,18 @@ export async function describeImageWithModel(
   await ensureOpenClawModelsJson(params.cfg, params.agentDir);
   const authStorage = discoverAuthStorage(params.agentDir);
   const modelRegistry = discoverModels(authStorage, params.agentDir);
-  const model = modelRegistry.find(params.provider, params.model) as Model<Api> | null;
+  let model = modelRegistry.find(params.provider, params.model) as Model<Api> | null;
+  if (!model) {
+    const providers = params.cfg?.models?.providers ?? {};
+    const inlineModels = buildInlineProviderModels(providers);
+    const np = normalizeProviderId(params.provider);
+    const inlineMatch = inlineModels.find(
+      (e) => normalizeProviderId(e.provider) === np && e.id === params.model,
+    );
+    if (inlineMatch) {
+      model = normalizeModelCompat(inlineMatch as Model<Api>);
+    }
+  }
   if (!model) {
     throw new Error(`Unknown model: ${params.provider}/${params.model}`);
   }
