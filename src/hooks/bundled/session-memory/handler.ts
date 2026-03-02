@@ -167,17 +167,19 @@ async function findPreviousSessionFile(params: {
 }
 
 /**
- * Save session context to memory when /new or /reset command is triggered
+ * Save session context to memory when /new or /reset command is triggered,
+ * or when a session ends naturally (timeout, reap, etc.).
  */
 const saveSessionToMemory: HookHandler = async (event) => {
-  // Only trigger on reset/new commands
-  const isResetCommand = event.action === "new" || event.action === "reset";
-  if (event.type !== "command" || !isResetCommand) {
+  const isResetCommand =
+    event.type === "command" && (event.action === "new" || event.action === "reset");
+  const isSessionEnd = event.type === "session" && event.action === "end";
+  if (!isResetCommand && !isSessionEnd) {
     return;
   }
 
   try {
-    log.debug("Hook triggered for reset/new command", { action: event.action });
+    log.debug("Hook triggered", { type: event.type, action: event.action });
 
     const context = event.context || {};
     const cfg = context.cfg as OpenClawConfig | undefined;
@@ -192,12 +194,13 @@ const saveSessionToMemory: HookHandler = async (event) => {
     const now = new Date(event.timestamp);
     const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
 
-    // Generate descriptive slug from session using LLM
-    // Prefer previousSessionEntry (old session before /new) over current (which may be empty)
-    const sessionEntry = (context.previousSessionEntry || context.sessionEntry || {}) as Record<
-      string,
-      unknown
-    >;
+    // For session:end, the ending session is the "current" one; for command:new/reset,
+    // prefer previousSessionEntry (old session before /new) over current (which may be empty).
+    const sessionEntry = (
+      isSessionEnd
+        ? context.sessionEntry || {}
+        : context.previousSessionEntry || context.sessionEntry || {}
+    ) as Record<string, unknown>;
     const currentSessionId = sessionEntry.sessionId as string;
     let currentSessionFile = (sessionEntry.sessionFile as string) || undefined;
 

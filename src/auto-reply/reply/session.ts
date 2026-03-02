@@ -27,6 +27,7 @@ import {
 } from "../../config/sessions.js";
 import type { TtsAutoMode } from "../../config/types.tts.js";
 import { archiveSessionTranscripts } from "../../gateway/session-utils.fs.js";
+import { createInternalHookEvent, triggerInternalHook } from "../../hooks/internal-hooks.js";
 import { deliverSessionMaintenanceWarning } from "../../infra/session-maintenance-warning.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
@@ -625,6 +626,15 @@ export async function initSessionState(params: {
           )
           .catch(() => {});
       }
+
+      // Also fire internal session:end hook so bundled hooks (e.g. session-memory)
+      // can save context for sessions that end without an explicit /new or /reset.
+      void triggerInternalHook(
+        createInternalHookEvent("session", "end", sessionKey, {
+          sessionEntry: previousSessionEntry,
+          cfg,
+        }),
+      ).catch(() => {});
     }
 
     // Fire session_start for the new session

@@ -506,4 +506,47 @@ describe("session-memory hook", () => {
     expect(memoryContent).toContain("user: Only message 1");
     expect(memoryContent).toContain("assistant: Only message 2");
   });
+
+  it("saves memory on session:end event", async () => {
+    const tempDir = await makeTempWorkspace("openclaw-session-memory-");
+    const sessionsDir = path.join(tempDir, "sessions");
+    await fs.mkdir(sessionsDir, { recursive: true });
+
+    const sessionFile = await writeWorkspaceFile({
+      dir: sessionsDir,
+      name: "timed-out-session.jsonl",
+      content: createMockSessionContent([
+        { role: "user", content: "Message before timeout" },
+        { role: "assistant", content: "Reply before timeout" },
+      ]),
+    });
+
+    const event = createHookEvent("session", "end", "agent:main:main", {
+      cfg: { agents: { defaults: { workspace: tempDir } } } satisfies OpenClawConfig,
+      sessionEntry: { sessionId: "timeout-123", sessionFile },
+    });
+
+    await handler(event);
+
+    const memoryDir = path.join(tempDir, "memory");
+    const files = await fs.readdir(memoryDir);
+    expect(files.length).toBe(1);
+
+    const memoryContent = await fs.readFile(path.join(memoryDir, files[0]), "utf-8");
+    expect(memoryContent).toContain("user: Message before timeout");
+    expect(memoryContent).toContain("assistant: Reply before timeout");
+  });
+
+  it("ignores unrelated session events", async () => {
+    const tempDir = await makeTempWorkspace("openclaw-session-memory-");
+
+    const event = createHookEvent("session", "start", "agent:main:main", {
+      cfg: { agents: { defaults: { workspace: tempDir } } } satisfies OpenClawConfig,
+    });
+
+    await handler(event);
+
+    const memoryDir = path.join(tempDir, "memory");
+    await expect(fs.access(memoryDir)).rejects.toThrow();
+  });
 });

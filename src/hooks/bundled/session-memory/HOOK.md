@@ -1,13 +1,13 @@
 ---
 name: session-memory
-description: "Save session context to memory when /new or /reset command is issued"
+description: "Save session context to memory when /new or /reset command is issued, or when a session ends naturally"
 homepage: https://docs.openclaw.ai/automation/hooks#session-memory
 metadata:
   {
     "openclaw":
       {
         "emoji": "💾",
-        "events": ["command:new", "command:reset"],
+        "events": ["command:new", "command:reset", "session:end"],
         "requires": { "config": ["workspace.dir"] },
         "install": [{ "id": "bundled", "kind": "bundled", "label": "Bundled with OpenClaw" }],
       },
@@ -16,7 +16,7 @@ metadata:
 
 # Session Memory Hook
 
-Automatically saves session context to your workspace memory when you issue `/new` or `/reset`.
+Automatically saves session context to your workspace memory when you issue `/new` or `/reset`, or when a session ends naturally (timeout, replacement, etc.).
 
 ## What It Does
 
