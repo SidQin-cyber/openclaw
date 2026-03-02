@@ -34,6 +34,26 @@ type PendingEntry = {
 export class ExecApprovalManager {
   private pending = new Map<string, PendingEntry>();
 
+  /**
+   * Resolve a potentially abbreviated slug to the full record ID.
+   * Exact match takes priority; falls back to unique prefix match.
+   */
+  private resolveRecordId(idOrSlug: string): string | null {
+    if (this.pending.has(idOrSlug)) {
+      return idOrSlug;
+    }
+    let matched: string | null = null;
+    for (const key of this.pending.keys()) {
+      if (key.startsWith(idOrSlug)) {
+        if (matched !== null) {
+          return null;
+        }
+        matched = key;
+      }
+    }
+    return matched;
+  }
+
   create(
     request: ExecApprovalRequestPayload,
     timeoutMs: number,
@@ -97,10 +117,12 @@ export class ExecApprovalManager {
   }
 
   resolve(recordId: string, decision: ExecApprovalDecision, resolvedBy?: string | null): boolean {
-    const pending = this.pending.get(recordId);
-    if (!pending) {
+    const fullId = this.resolveRecordId(recordId);
+    const pending = fullId ? this.pending.get(fullId) : undefined;
+    if (!pending || !fullId) {
       return false;
     }
+    recordId = fullId;
     // Prevent double-resolve (e.g., if called after timeout already resolved)
     if (pending.record.resolvedAtMs !== undefined) {
       return false;
@@ -143,12 +165,14 @@ export class ExecApprovalManager {
   }
 
   getSnapshot(recordId: string): ExecApprovalRecord | null {
-    const entry = this.pending.get(recordId);
+    const fullId = this.resolveRecordId(recordId);
+    const entry = fullId ? this.pending.get(fullId) : undefined;
     return entry?.record ?? null;
   }
 
   consumeAllowOnce(recordId: string): boolean {
-    const entry = this.pending.get(recordId);
+    const fullId = this.resolveRecordId(recordId);
+    const entry = fullId ? this.pending.get(fullId) : undefined;
     if (!entry) {
       return false;
     }
@@ -167,7 +191,8 @@ export class ExecApprovalManager {
    * Returns the decision promise if the ID is pending, null otherwise.
    */
   awaitDecision(recordId: string): Promise<ExecApprovalDecision | null> | null {
-    const entry = this.pending.get(recordId);
+    const fullId = this.resolveRecordId(recordId);
+    const entry = fullId ? this.pending.get(fullId) : undefined;
     return entry?.promise ?? null;
   }
 }
