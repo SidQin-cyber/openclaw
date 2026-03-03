@@ -273,9 +273,33 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
     }
   } else if (payload.state === "final") {
     const finalMessage = normalizeFinalAssistantMessage(payload.message);
+    const pendingStream =
+      state.chatStream?.trim() && !isSilentReplyStream(state.chatStream) ? state.chatStream : null;
+
     if (finalMessage && !isAssistantSilentReply(finalMessage)) {
-      state.chatMessages = [...state.chatMessages, finalMessage];
-    } else if (state.chatStream?.trim() && !isSilentReplyStream(state.chatStream)) {
+      if (pendingStream) {
+        const finalText = extractText(finalMessage);
+        if (
+          typeof finalText === "string" &&
+          pendingStream.trimEnd().length >= 20 &&
+          finalText.trimEnd().startsWith(pendingStream.trimEnd())
+        ) {
+          state.chatMessages = [...state.chatMessages, finalMessage];
+        } else {
+          state.chatMessages = [
+            ...state.chatMessages,
+            {
+              role: "assistant",
+              content: [{ type: "text", text: state.chatStream }],
+              timestamp: Date.now(),
+            },
+            finalMessage,
+          ];
+        }
+      } else {
+        state.chatMessages = [...state.chatMessages, finalMessage];
+      }
+    } else if (pendingStream) {
       state.chatMessages = [
         ...state.chatMessages,
         {

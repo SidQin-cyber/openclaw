@@ -199,16 +199,75 @@ describe("handleChatEvent", () => {
     expect(state.chatMessages).toEqual([]);
   });
 
-  it("prefers final payload message over streamed text", () => {
+  it("prefers final payload message over streamed text when final extends stream", () => {
     const state = createState({
       sessionKey: "main",
       chatRunId: "run-1",
-      chatStream: "Streamed partial",
+      chatStream: "Complete rep",
       chatStreamStartedAt: 100,
     });
     const finalMsg = {
       role: "assistant",
       content: [{ type: "text", text: "Complete reply" }],
+      timestamp: 101,
+    };
+    const payload: ChatEventPayload = {
+      runId: "run-1",
+      sessionKey: "main",
+      state: "final",
+      message: finalMsg,
+    };
+    expect(handleChatEvent(state, payload)).toBe("final");
+    expect(state.chatMessages).toEqual([finalMsg]);
+    expect(state.chatStream).toBe(null);
+  });
+
+  it("preserves streamed text when final event carries a different message", () => {
+    const existingMessage = {
+      role: "user",
+      content: [{ type: "text", text: "Search for X" }],
+      timestamp: 1,
+    };
+    const state = createState({
+      sessionKey: "main",
+      chatRunId: "run-1",
+      chatStream: "Let me search for that",
+      chatStreamStartedAt: 100,
+      chatMessages: [existingMessage],
+    });
+    const toolMsg = {
+      role: "assistant",
+      content: [{ type: "tool_use", id: "tool-1", name: "search", input: { q: "X" } }],
+      timestamp: 101,
+    };
+    const payload: ChatEventPayload = {
+      runId: "run-1",
+      sessionKey: "main",
+      state: "final",
+      message: toolMsg,
+    };
+    expect(handleChatEvent(state, payload)).toBe("final");
+    expect(state.chatRunId).toBe(null);
+    expect(state.chatStream).toBe(null);
+    expect(state.chatMessages).toHaveLength(3);
+    expect(state.chatMessages[0]).toEqual(existingMessage);
+    expect(state.chatMessages[1]).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "Let me search for that" }],
+    });
+    expect(state.chatMessages[2]).toEqual(toolMsg);
+  });
+
+  it("does not duplicate stream when final message contains same text", () => {
+    const state = createState({
+      sessionKey: "main",
+      chatRunId: "run-1",
+      chatStream: "Hello world",
+      chatStreamStartedAt: 100,
+    });
+    const finalMsg = {
+      role: "assistant",
+      content: [{ type: "text", text: "Hello world" }],
       timestamp: 101,
     };
     const payload: ChatEventPayload = {
