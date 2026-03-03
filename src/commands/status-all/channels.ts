@@ -320,23 +320,40 @@ export async function buildChannelsTable(
 
     const accounts: ChannelAccountRow[] = [];
     for (const accountId of resolvedAccountIds) {
-      const account = plugin.config.resolveAccount(cfg, accountId);
-      const enabled = resolveChannelAccountEnabled({ plugin, account, cfg });
-      const configured = await resolveChannelAccountConfigured({
-        plugin,
-        account,
-        cfg,
-        readAccountConfiguredField: true,
-      });
-      const snapshot = buildChannelAccountSnapshot({
-        plugin,
-        cfg,
-        accountId,
-        account,
-        enabled,
-        configured,
-      });
-      accounts.push({ accountId, account, enabled, configured, snapshot });
+      try {
+        const account = plugin.config.resolveAccount(cfg, accountId);
+        const enabled = resolveChannelAccountEnabled({ plugin, account, cfg });
+        const configured = await resolveChannelAccountConfigured({
+          plugin,
+          account,
+          cfg,
+          readAccountConfiguredField: true,
+        });
+        const snapshot = buildChannelAccountSnapshot({
+          plugin,
+          cfg,
+          accountId,
+          account,
+          enabled,
+          configured,
+        });
+        accounts.push({ accountId, account, enabled, configured, snapshot });
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const degraded: ChannelAccountSnapshot = {
+          accountId,
+          enabled: false,
+          configured: false,
+          lastError: errorMessage || "account resolution failed",
+        };
+        accounts.push({
+          accountId,
+          account: {},
+          enabled: false,
+          configured: false,
+          snapshot: degraded,
+        });
+      }
     }
 
     const anyEnabled = accounts.some((a) => a.enabled);
@@ -369,9 +386,13 @@ export async function buildChannelsTable(
 
     const label = plugin.meta.label ?? plugin.id;
 
+    const hasDegradedAccount = accounts.some((a) =>
+      a.snapshot.lastError?.includes("unresolved SecretRef"),
+    );
+
     const state = (() => {
       if (!anyEnabled) {
-        return "off";
+        return hasDegradedAccount ? "warn" : "off";
       }
       if (missingPaths.length > 0) {
         return "warn";
@@ -396,6 +417,9 @@ export async function buildChannelsTable(
 
     const detail = (() => {
       if (!anyEnabled) {
+        if (hasDegradedAccount) {
+          return "unresolved SecretRef (gateway unreachable)";
+        }
         if (!defaultEntry) {
           return "disabled";
         }
