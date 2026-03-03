@@ -424,3 +424,38 @@ describe("GatewayClient connect auth payload", () => {
     client.stop();
   });
 });
+
+describe("GatewayClient event seq gap reset on reconnect (#32628)", () => {
+  beforeEach(() => {
+    wsInstances.length = 0;
+  });
+
+  it("resets lastSeq on reconnect so stale seq does not trigger false gap", () => {
+    const onGap = vi.fn();
+    const client = new GatewayClient({
+      url: "ws://127.0.0.1:18789",
+      token: "t",
+      onGap,
+    });
+
+    client.start();
+    const ws1 = getLatestWs();
+    ws1.emitOpen();
+
+    ws1.emitMessage(JSON.stringify({ type: "event", event: "tick", seq: 100 }));
+    ws1.emitMessage(JSON.stringify({ type: "event", event: "tick", seq: 101 }));
+    expect(onGap).not.toHaveBeenCalled();
+
+    ws1.emitClose(1006, "");
+
+    client.start();
+    const ws2 = getLatestWs();
+    ws2.emitOpen();
+
+    ws2.emitMessage(JSON.stringify({ type: "event", event: "tick", seq: 1 }));
+    ws2.emitMessage(JSON.stringify({ type: "event", event: "tick", seq: 2 }));
+
+    expect(onGap).not.toHaveBeenCalled();
+    client.stop();
+  });
+});

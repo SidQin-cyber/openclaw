@@ -409,6 +409,7 @@ export class GatewayClient {
   private queueConnect() {
     this.connectNonce = null;
     this.connectSent = false;
+    this.lastSeq = null;
     const rawConnectDelayMs = this.opts.connectDelayMs;
     const connectChallengeTimeoutMs =
       typeof rawConnectDelayMs === "number" && Number.isFinite(rawConnectDelayMs)

@@ -350,6 +350,7 @@ export class GatewayBrowserClient {
   private queueConnect() {
     this.connectNonce = null;
     this.connectSent = false;
+    this.lastSeq = null;
     if (this.connectTimer !== null) {
       window.clearTimeout(this.connectTimer);
     }
