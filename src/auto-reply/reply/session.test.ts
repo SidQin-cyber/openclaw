@@ -1392,6 +1392,47 @@ describe("initSessionState stale threadId fallback", () => {
     });
     expect(result.sessionEntry.lastThreadId).toBe(99);
   });
+
+  it("preserves thread ID 0 using nullish coalescing instead of logical OR", async () => {
+    const storePath = await createStorePath("thread-zero-");
+    const cfg = { session: { store: storePath } } as OpenClawConfig;
+
+    const result = await initSessionState({
+      ctx: {
+        Body: "topic zero",
+        SessionKey: "agent:main:main:topic:0",
+        MessageThreadId: 0,
+      },
+      cfg,
+      commandAuthorized: true,
+    });
+    expect(result.sessionEntry.lastThreadId).toBe(0);
+  });
+
+  it("does not inherit lastThreadId for topic-scoped session when MessageThreadId is absent", async () => {
+    const storePath = await createStorePath("topic-retry-");
+    const cfg = { session: { store: storePath } } as OpenClawConfig;
+
+    await initSessionState({
+      ctx: {
+        Body: "first in topic",
+        SessionKey: "agent:main:main:topic:5",
+        MessageThreadId: 5,
+      },
+      cfg,
+      commandAuthorized: true,
+    });
+
+    const retryResult = await initSessionState({
+      ctx: {
+        Body: "retry without threadId",
+        SessionKey: "agent:main:main:topic:5",
+      },
+      cfg,
+      commandAuthorized: true,
+    });
+    expect(retryResult.sessionEntry.lastThreadId).toBeUndefined();
+  });
 });
 
 describe("initSessionState dmScope delivery migration", () => {

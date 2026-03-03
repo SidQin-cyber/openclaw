@@ -263,7 +263,10 @@ export async function initSessionState(params: {
   // Only fall back to persisted threadId for thread sessions.  Non-thread
   // sessions (e.g. DM without topics) must not inherit a stale threadId from a
   // previous interaction that happened inside a topic/thread.
-  const lastThreadIdRaw = ctx.MessageThreadId || (isThread ? baseEntry?.lastThreadId : undefined);
+  const isTopicScopedSession = sessionKey?.includes(":topic:");
+  const lastThreadIdRaw =
+    ctx.MessageThreadId ??
+    (isThread && !isTopicScopedSession ? baseEntry?.lastThreadId : undefined);
   const deliveryFields = normalizeSessionDeliveryFields({
     deliveryContext: {
       channel: lastChannelRaw,
