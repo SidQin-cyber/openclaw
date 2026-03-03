@@ -184,6 +184,22 @@ export function buildEmbeddedRunPayloads(params: {
     }
   }
 
+  if (!params.inlineToolResultsAllowed && params.toolMetas.length > 0) {
+    for (const { toolName, meta } of params.toolMetas) {
+      const agg = formatToolAggregate(toolName, meta ? [meta] : [], {
+        markdown: useMarkdown,
+      });
+      const { mediaUrls, audioAsVoice } = parseReplyDirectives(agg);
+      if ((mediaUrls && mediaUrls.length > 0) || audioAsVoice) {
+        replyItems.push({
+          text: "",
+          media: mediaUrls,
+          audioAsVoice,
+        });
+      }
+    }
+  }
+
   const reasoningText =
     params.lastAssistant && params.reasoningLevel === "on"
       ? formatReasoningMessage(extractAssistantThinking(params.lastAssistant))

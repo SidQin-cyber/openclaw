@@ -83,3 +83,64 @@ describe("buildEmbeddedRunPayloads tool-error warnings", () => {
     expect(payloads).toHaveLength(0);
   });
 });
+
+describe("buildEmbeddedRunPayloads tool media extraction", () => {
+  it("includes tool media in payloads even when inlineToolResultsAllowed is false", () => {
+    const payloads = buildPayloads({
+      inlineToolResultsAllowed: false,
+      toolMetas: [
+        {
+          toolName: "tts",
+          meta: "voice note\nMEDIA:https://cdn.example.com/voice.ogg\n[[audio_as_voice]]",
+        },
+      ],
+    });
+
+    expect(payloads.length).toBeGreaterThanOrEqual(1);
+    const mediaPayload = payloads.find((p) => p.mediaUrls && p.mediaUrls.length > 0);
+    expect(mediaPayload).toBeDefined();
+    expect(mediaPayload!.mediaUrls).toContain("https://cdn.example.com/voice.ogg");
+    expect(mediaPayload!.audioAsVoice).toBe(true);
+  });
+
+  it("does not duplicate media when inlineToolResultsAllowed is true", () => {
+    const payloads = buildPayloads({
+      inlineToolResultsAllowed: true,
+      verboseLevel: "on",
+      toolMetas: [
+        {
+          toolName: "tts",
+          meta: "voice note\nMEDIA:https://cdn.example.com/voice.ogg",
+        },
+      ],
+    });
+
+    const mediaPayloads = payloads.filter((p) => p.mediaUrls && p.mediaUrls.length > 0);
+    expect(mediaPayloads).toHaveLength(1);
+  });
+
+  it("does not extract media on non-cron path when verboseLevel is off", () => {
+    const payloads = buildPayloads({
+      inlineToolResultsAllowed: true,
+      verboseLevel: "off",
+      toolMetas: [
+        {
+          toolName: "tts",
+          meta: "voice note\nMEDIA:https://cdn.example.com/voice.ogg",
+        },
+      ],
+    });
+
+    const mediaPayloads = payloads.filter((p) => p.mediaUrls && p.mediaUrls.length > 0);
+    expect(mediaPayloads).toHaveLength(0);
+  });
+
+  it("skips tool metas without media when inlineToolResultsAllowed is false", () => {
+    const payloads = buildPayloads({
+      inlineToolResultsAllowed: false,
+      toolMetas: [{ toolName: "search", meta: "Found 3 results" }],
+    });
+
+    expect(payloads).toHaveLength(0);
+  });
+});
