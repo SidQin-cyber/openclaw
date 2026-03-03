@@ -219,6 +219,45 @@ describe("sessions.usage", () => {
     expect(vi.mocked(loadSessionLogs).mock.calls[0]?.[0]?.agentId).toBe("opus");
   });
 
+  it("aggregates messages.total as 1 when messageCounts is null but tokens exist (#32623)", async () => {
+    vi.mocked(loadSessionCostSummary).mockResolvedValueOnce({
+      input: 500,
+      output: 300,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 800,
+      totalCost: 0.01,
+      inputCost: 0,
+      outputCost: 0,
+      cacheReadCost: 0,
+      cacheWriteCost: 0,
+      missingCostEntries: 0,
+    });
+    vi.mocked(loadSessionCostSummary).mockResolvedValueOnce({
+      input: 200,
+      output: 100,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 300,
+      totalCost: 0,
+      inputCost: 0,
+      outputCost: 0,
+      cacheReadCost: 0,
+      cacheWriteCost: 0,
+      missingCostEntries: 0,
+      messageCounts: { total: 0, user: 0, assistant: 0, toolCalls: 5, toolResults: 5, errors: 0 },
+    });
+
+    const respond = await runSessionsUsage(BASE_USAGE_RANGE);
+    expect(respond.mock.calls[0]?.[0]).toBe(true);
+    const result = respond.mock.calls[0]?.[1] as {
+      aggregates: { messages: { total: number } };
+      totals: { totalTokens: number };
+    };
+    expect(result.totals.totalTokens).toBe(1100);
+    expect(result.aggregates.messages.total).toBeGreaterThan(0);
+  });
+
   it("rejects traversal-style keys in timeseries/log lookups", async () => {
     const timeseriesRespond = await runSessionsUsageTimeseries({
       key: "agent:opus:../../etc/passwd",

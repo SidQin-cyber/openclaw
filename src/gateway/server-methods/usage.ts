@@ -612,12 +612,22 @@ export const usageHandlers: GatewayRequestHandlers = {
 
       if (usage) {
         if (usage.messageCounts) {
-          aggregateMessages.total += usage.messageCounts.total;
+          const effectiveTotal =
+            usage.messageCounts.total > 0
+              ? usage.messageCounts.total
+              : usage.messageCounts.assistant + usage.messageCounts.user > 0
+                ? usage.messageCounts.assistant + usage.messageCounts.user
+                : usage.totalTokens > 0
+                  ? 1
+                  : 0;
+          aggregateMessages.total += effectiveTotal;
           aggregateMessages.user += usage.messageCounts.user;
           aggregateMessages.assistant += usage.messageCounts.assistant;
           aggregateMessages.toolCalls += usage.messageCounts.toolCalls;
           aggregateMessages.toolResults += usage.messageCounts.toolResults;
           aggregateMessages.errors += usage.messageCounts.errors;
+        } else if (usage.totalTokens > 0) {
+          aggregateMessages.total += 1;
         }
 
         if (usage.toolUsage) {
