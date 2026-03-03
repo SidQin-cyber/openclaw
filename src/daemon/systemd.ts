@@ -351,6 +351,11 @@ export async function isSystemdServiceEnabled(args: GatewayServiceEnvArgs): Prom
   if (res.code === 0) {
     return true;
   }
+  // Exit code 4 means "no such unit" — the service hasn't been installed yet.
+  // Treat this the same as "disabled" so gateway install can proceed.
+  if (res.code === 4) {
+    return false;
+  }
   const detail = readSystemctlDetail(res);
   if (isSystemctlMissing(detail) || isSystemdUnitNotEnabled(detail)) {
     return false;
