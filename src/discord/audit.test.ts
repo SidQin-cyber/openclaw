@@ -36,6 +36,31 @@ describe("discord audit", () => {
     expect(collected.channelIds).toEqual(["111"]);
     expect(collected.unresolvedChannels).toBe(1);
 
+    const cfgWildcard = {
+      channels: {
+        discord: {
+          enabled: true,
+          token: "t",
+          groupPolicy: "allowlist",
+          guilds: {
+            "123": {
+              channels: {
+                "*": { allow: true },
+                "111": { allow: true },
+              },
+            },
+          },
+        },
+      },
+    } as unknown as import("../config/config.js").OpenClawConfig;
+
+    const wildcardResult = collectDiscordAuditChannelIds({
+      cfg: cfgWildcard,
+      accountId: "default",
+    });
+    expect(wildcardResult.channelIds).toEqual(["111"]);
+    expect(wildcardResult.unresolvedChannels).toBe(0);
+
     (fetchChannelPermissionsDiscord as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       channelId: "111",
       permissions: ["ViewChannel"],
@@ -52,5 +77,30 @@ describe("discord audit", () => {
     expect(audit.ok).toBe(false);
     expect(audit.channels[0]?.channelId).toBe("111");
     expect(audit.channels[0]?.missing).toContain("SendMessages");
+  });
+
+  it("does not count '*' wildcard as unresolved (#32517)", async () => {
+    const { collectDiscordAuditChannelIds } = await import("./audit.js");
+
+    const cfg = {
+      channels: {
+        discord: {
+          enabled: true,
+          token: "t",
+          groupPolicy: "allowlist",
+          guilds: {
+            "999": {
+              channels: {
+                "*": { allow: true },
+              },
+            },
+          },
+        },
+      },
+    } as unknown as import("../config/config.js").OpenClawConfig;
+
+    const result = collectDiscordAuditChannelIds({ cfg, accountId: "default" });
+    expect(result.channelIds).toEqual([]);
+    expect(result.unresolvedChannels).toBe(0);
   });
 });

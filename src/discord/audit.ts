@@ -75,7 +75,8 @@ export function collectDiscordAuditChannelIds(params: {
   });
   const keys = listConfiguredGuildChannelKeys(account.config.guilds);
   const channelIds = keys.filter((key) => /^\d+$/.test(key));
-  const unresolvedChannels = keys.length - channelIds.length;
+  const wildcardCount = keys.filter((key) => key === "*").length;
+  const unresolvedChannels = Math.max(0, keys.length - channelIds.length - wildcardCount);
   return { channelIds, unresolvedChannels };
 }
 
