@@ -1,6 +1,7 @@
 import { formatCliCommand } from "../cli/command-format.js";
 import { withProgress } from "../cli/progress.js";
 import { loadConfig, resolveGatewayPort } from "../config/config.js";
+import { resolveAgentModelFallbackValues } from "../config/model-input.js";
 import { buildGatewayConnectionDetails, callGateway } from "../gateway/call.js";
 import { info } from "../globals.js";
 import { formatTimeAgo } from "../infra/format-time/format-relative.ts";
@@ -421,7 +422,12 @@ export async function statusCommand(
     ...(lastHeartbeatValue ? [{ Item: "Last heartbeat", Value: lastHeartbeatValue }] : []),
     {
       Item: "Sessions",
-      Value: `${summary.sessions.count} active · default ${defaults.model ?? "unknown"}${defaultCtx} · ${storeLabel}`,
+      Value: (() => {
+        const fb = resolveAgentModelFallbackValues(cfg.agents?.defaults?.model);
+        const fbSuffix =
+          fb.length > 0 ? ` (+${fb.length} fallback${fb.length > 1 ? "s" : ""})` : "";
+        return `${summary.sessions.count} active · default ${defaults.model ?? "unknown"}${fbSuffix}${defaultCtx} · ${storeLabel}`;
+      })(),
     },
   ];
 
