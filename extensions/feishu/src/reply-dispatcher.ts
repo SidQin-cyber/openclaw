@@ -247,12 +247,6 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         void typingCallbacks.onReplyStart?.();
       },
       deliver: async (payload: ReplyPayload, info) => {
-        // FIX: Filter out internal 'block' reasoning chunks immediately to prevent
-        // data leak and race conditions with streaming state initialization.
-        if (info?.kind === "block") {
-          return;
-        }
-
         const text = payload.text ?? "";
         const mediaList =
           payload.mediaUrls && payload.mediaUrls.length > 0
@@ -269,6 +263,18 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
 
         if (hasText) {
           const useCard = renderMode === "card" || (renderMode === "auto" && shouldUseCard(text));
+
+          if (info?.kind === "block") {
+            // Drop internal block chunks unless we can safely consume them as
+            // streaming-card fallback content.
+            if (!(streamingEnabled && useCard)) {
+              return;
+            }
+            startStreaming();
+            if (streamingStartPromise) {
+              await streamingStartPromise;
+            }
+          }
 
           if (info?.kind === "final" && streamingEnabled && useCard) {
             startStreaming();
