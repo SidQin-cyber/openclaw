@@ -259,6 +259,78 @@ describe("deliverDiscordReply", () => {
     );
   });
 
+  it("retries bot sender on 429 rate-limit and succeeds (#32887)", async () => {
+    const rateLimitErr = Object.assign(new Error("rate limited"), {
+      status: 429,
+      headers: { "retry-after": "0.01" },
+    });
+    sendMessageDiscordMock
+      .mockRejectedValueOnce(rateLimitErr)
+      .mockResolvedValueOnce({ messageId: "msg-retry" });
+
+    await deliverDiscordReply({
+      replies: [{ text: "hello" }],
+      target: "channel:123",
+      token: "token",
+      runtime,
+      textLimit: 2000,
+    });
+
+    expect(sendMessageDiscordMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries bot sender on 500 server error and succeeds (#32887)", async () => {
+    const serverErr = Object.assign(new Error("internal"), { status: 500 });
+    sendMessageDiscordMock
+      .mockRejectedValueOnce(serverErr)
+      .mockResolvedValueOnce({ messageId: "msg-ok" });
+
+    await deliverDiscordReply({
+      replies: [{ text: "hello" }],
+      target: "channel:123",
+      token: "token",
+      runtime,
+      textLimit: 2000,
+    });
+
+    expect(sendMessageDiscordMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws immediately on non-retryable 4xx errors (#32887)", async () => {
+    const clientErr = Object.assign(new Error("forbidden"), { status: 403 });
+    sendMessageDiscordMock.mockRejectedValueOnce(clientErr);
+
+    await expect(
+      deliverDiscordReply({
+        replies: [{ text: "hello" }],
+        target: "channel:123",
+        token: "token",
+        runtime,
+        textLimit: 2000,
+      }),
+    ).rejects.toThrow("forbidden");
+
+    expect(sendMessageDiscordMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers remaining chunks after a mid-sequence retry (#32887)", async () => {
+    sendMessageDiscordMock
+      .mockResolvedValueOnce({ messageId: "c1" })
+      .mockRejectedValueOnce(Object.assign(new Error("rate limited"), { status: 429 }))
+      .mockResolvedValueOnce({ messageId: "c2-retry" })
+      .mockResolvedValueOnce({ messageId: "c3" });
+
+    await deliverDiscordReply({
+      replies: [{ text: "A".repeat(6) }],
+      target: "channel:123",
+      token: "token",
+      runtime,
+      textLimit: 2,
+    });
+
+    expect(sendMessageDiscordMock).toHaveBeenCalledTimes(4);
+  });
+
   it("does not use thread webhook when outbound target is not a bound thread", async () => {
     const threadBindings = await createBoundThreadBindings();
 
