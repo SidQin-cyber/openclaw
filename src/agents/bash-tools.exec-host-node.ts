@@ -93,10 +93,15 @@ export async function executeNodeHostCommand(
       "exec host=node requires a node that supports system.run (companion app or node host).",
     );
   }
+  const invokeTimeoutMs = Math.max(
+    10_000,
+    (typeof params.timeoutSec === "number" ? params.timeoutSec : params.defaultTimeoutSec) * 1000 +
+      5_000,
+  );
   const argv = buildNodeShellCommand(params.command, nodeInfo?.platform);
   const prepareRaw = await callGatewayTool<{ payload?: unknown }>(
     "node.invoke",
-    { timeoutMs: 15_000 },
+    { timeoutMs: invokeTimeoutMs },
     {
       nodeId,
       command: "system.run.prepare",
@@ -180,11 +185,6 @@ export async function executeNodeHostCommand(
       analysisOk,
       allowlistSatisfied,
     }) || obfuscation.detected;
-  const invokeTimeoutMs = Math.max(
-    10_000,
-    (typeof params.timeoutSec === "number" ? params.timeoutSec : params.defaultTimeoutSec) * 1000 +
-      5_000,
-  );
   const buildInvokeParams = (
     approvedByAsk: boolean,
     approvalDecision: "allow-once" | "allow-always" | null,
