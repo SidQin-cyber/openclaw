@@ -4,6 +4,7 @@ import {
   shouldSuppressReasoningPayload,
 } from "../../auto-reply/reply/reply-payloads.js";
 import type { ReplyPayload } from "../../auto-reply/types.js";
+import { stripGeminiInlineReasoning } from "../../shared/text/reasoning-tags.js";
 
 export type NormalizedOutboundPayload = {
   text: string;
@@ -42,13 +43,20 @@ function mergeMediaUrls(...lists: Array<ReadonlyArray<string | undefined> | unde
 
 export function normalizeReplyPayloadsForDelivery(
   payloads: readonly ReplyPayload[],
+  options?: { provider?: string },
 ): ReplyPayload[] {
+  const isGemini =
+    options?.provider != null &&
+    /^(google|gemini)/i.test(options.provider);
   const normalized: ReplyPayload[] = [];
   for (const payload of payloads) {
     if (shouldSuppressReasoningPayload(payload)) {
       continue;
     }
     const parsed = parseReplyDirectives(payload.text ?? "");
+    const strippedText = isGemini
+      ? stripGeminiInlineReasoning(parsed.text ?? "")
+      : (parsed.text ?? "");
     const explicitMediaUrls = payload.mediaUrls ?? parsed.mediaUrls;
     const explicitMediaUrl = payload.mediaUrl ?? parsed.mediaUrl;
     const mergedMedia = mergeMediaUrls(
@@ -59,7 +67,7 @@ export function normalizeReplyPayloadsForDelivery(
     const resolvedMediaUrl = hasMultipleMedia ? undefined : explicitMediaUrl;
     const next: ReplyPayload = {
       ...payload,
-      text: parsed.text ?? "",
+      text: strippedText,
       mediaUrls: mergedMedia.length ? mergedMedia : undefined,
       mediaUrl: resolvedMediaUrl,
       replyToId: payload.replyToId ?? parsed.replyToId,

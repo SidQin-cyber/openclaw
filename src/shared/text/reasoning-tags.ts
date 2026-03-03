@@ -90,3 +90,20 @@ export function stripReasoningTagsFromText(
 
   return applyTrim(result, trimMode);
 }
+
+const GEMINI_REASONING_HEADER_RE = /^Reasoning:\s*\n[\s\S]*?\n\n/i;
+
+/**
+ * Strip inline reasoning text that Gemini Flash emits as plain content
+ * when `thinkingDefault` is set to "off".
+ *
+ * Only strips the "Reasoning:\n...\n\n" header pattern, which is
+ * specific to Gemini's output format and unlikely in normal content.
+ */
+export function stripGeminiInlineReasoning(text: string): string {
+  if (!text) {
+    return text;
+  }
+  const cleaned = text.replace(GEMINI_REASONING_HEADER_RE, "");
+  return cleaned.trim() ? cleaned : "";
+}

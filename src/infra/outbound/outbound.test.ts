@@ -1157,6 +1157,24 @@ describe("normalizeOutboundPayloads", () => {
     ]);
     expect(normalized).toEqual([{ text: "final answer", mediaUrls: [] }]);
   });
+
+  it("preserves text without provider context (no Gemini stripping)", () => {
+    const normalized = normalizeOutboundPayloads([
+      { text: "Reasoning:\n_The user wants a greeting._\n\nHello there!" },
+    ]);
+    expect(normalized).toEqual([
+      { text: "Reasoning:\n_The user wants a greeting._\n\nHello there!", mediaUrls: [] },
+    ]);
+  });
+
+  it("preserves italic text as valid markdown emphasis", () => {
+    const normalized = normalizeOutboundPayloads([
+      { text: "_The user is asking about the weather._" },
+    ]);
+    expect(normalized).toEqual([
+      { text: "_The user is asking about the weather._", mediaUrls: [] },
+    ]);
+  });
 });
 
 describe("formatOutboundPayloadLog", () => {

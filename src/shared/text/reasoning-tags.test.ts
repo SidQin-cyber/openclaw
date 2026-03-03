@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripReasoningTagsFromText } from "./reasoning-tags.js";
+import { stripGeminiInlineReasoning, stripReasoningTagsFromText } from "./reasoning-tags.js";
 
 describe("stripReasoningTagsFromText", () => {
   describe("basic functionality", () => {
@@ -220,5 +220,65 @@ describe("stripReasoningTagsFromText", () => {
         expect(stripReasoningTagsFromText(testCase.input, testCase.opts)).toBe(testCase.expected);
       }
     });
+  });
+});
+
+describe("stripGeminiInlineReasoning", () => {
+  it("strips 'Reasoning:' header block followed by actual response", () => {
+    const input = "Reasoning:\n_The user wants a greeting._\n\nHello there!";
+    expect(stripGeminiInlineReasoning(input)).toBe("Hello there!");
+  });
+
+  it("strips multi-line reasoning header block", () => {
+    const input =
+      "Reasoning:\n_The user is asking about X._\n_I should consider Y._\n\nHere is the answer.";
+    expect(stripGeminiInlineReasoning(input)).toBe("Here is the answer.");
+  });
+
+  it("is case-insensitive for the Reasoning header", () => {
+    const input = "reasoning:\nsome analysis\n\nActual reply";
+    expect(stripGeminiInlineReasoning(input)).toBe("Actual reply");
+  });
+
+  it("preserves italic-only text (valid markdown emphasis)", () => {
+    expect(stripGeminiInlineReasoning("_Thanks!_")).toBe("_Thanks!_");
+    expect(stripGeminiInlineReasoning("_The user is asking about the weather._")).toBe(
+      "_The user is asking about the weather._",
+    );
+  });
+
+  it("preserves italic text followed by actual content (paragraph break)", () => {
+    const input = "_Some italic intro_\n\nActual response here.";
+    expect(stripGeminiInlineReasoning(input)).toBe(input);
+  });
+
+  it("preserves normal text without reasoning patterns", () => {
+    const input = "Hello, how can I help you today?";
+    expect(stripGeminiInlineReasoning(input)).toBe(input);
+  });
+
+  it("preserves text with italic formatting that is not reasoning", () => {
+    const input = "Here is some _emphasized_ text in a sentence.";
+    expect(stripGeminiInlineReasoning(input)).toBe(input);
+  });
+
+  it("handles empty and null-ish inputs", () => {
+    expect(stripGeminiInlineReasoning("")).toBe("");
+    expect(stripGeminiInlineReasoning(null as unknown as string)).toBe(null);
+  });
+
+  it("strips reasoning header when response is multi-paragraph", () => {
+    const input = "Reasoning:\n_analysis_\n\nFirst paragraph.\n\nSecond paragraph.";
+    expect(stripGeminiInlineReasoning(input)).toBe("First paragraph.\n\nSecond paragraph.");
+  });
+
+  it("does not strip 'Reasoning:' that appears mid-text", () => {
+    const input = "Some intro.\nReasoning:\n_analysis_\n\nMore text.";
+    expect(stripGeminiInlineReasoning(input)).toBe(input);
+  });
+
+  it("returns empty when reasoning header consumes entire text", () => {
+    const input = "Reasoning:\n_This is all reasoning._\n\n";
+    expect(stripGeminiInlineReasoning(input)).toBe("");
   });
 });
