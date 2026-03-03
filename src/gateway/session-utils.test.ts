@@ -4,12 +4,14 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
 import type { SessionEntry } from "../config/sessions.js";
+import { withStateDirEnv } from "../test-helpers/state-dir-env.js";
 import {
   capArrayByJsonBytes,
   classifySessionKey,
   deriveSessionTitle,
   listAgentsForGateway,
   listSessionsFromStore,
+  loadCombinedSessionStoreForGateway,
   parseGroupKey,
   pruneLegacyStoreKeys,
   resolveGatewaySessionStoreTarget,
@@ -744,5 +746,47 @@ describe("listSessionsFromStore search", () => {
     expect(stale?.totalTokensFresh).toBe(false);
     expect(missing?.totalTokens).toBeUndefined();
     expect(missing?.totalTokensFresh).toBe(false);
+  });
+});
+
+describe("loadCombinedSessionStoreForGateway includes disk-only agents (#32804)", () => {
+  test("ACP agent sessions are visible even when agents.list is configured", async () => {
+    await withStateDirEnv("openclaw-acp-vis-", async ({ stateDir }) => {
+      const agentsDir = path.join(stateDir, "agents");
+      const mainDir = path.join(agentsDir, "main", "sessions");
+      const codexDir = path.join(agentsDir, "codex", "sessions");
+      fs.mkdirSync(mainDir, { recursive: true });
+      fs.mkdirSync(codexDir, { recursive: true });
+
+      fs.writeFileSync(
+        path.join(mainDir, "sessions.json"),
+        JSON.stringify({
+          "agent:main:main": { sessionId: "s-main", updatedAt: 100 },
+        }),
+        "utf8",
+      );
+
+      fs.writeFileSync(
+        path.join(codexDir, "sessions.json"),
+        JSON.stringify({
+          "agent:codex:acp-task": { sessionId: "s-codex", updatedAt: 200 },
+        }),
+        "utf8",
+      );
+
+      const cfg = {
+        session: {
+          mainKey: "main",
+          store: path.join(stateDir, "agents", "{agentId}", "sessions", "sessions.json"),
+        },
+        agents: {
+          list: [{ id: "main", default: true }],
+        },
+      } as OpenClawConfig;
+
+      const { store } = loadCombinedSessionStoreForGateway(cfg);
+      expect(store["agent:main:main"]).toBeDefined();
+      expect(store["agent:codex:acp-task"]).toBeDefined();
+    });
   });
 });
