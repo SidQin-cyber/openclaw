@@ -148,8 +148,11 @@ export async function checkInboundAccessControl(params: {
 
   // DM access control (secure defaults): "pairing" (default) / "allowlist" / "open" / "disabled".
   if (!params.group) {
-    if (params.isFromMe && !isSamePhone) {
-      logVerbose("Skipping outbound DM (fromMe); no pairing reply needed.");
+    const remoteDigits = params.remoteJid.replace(/@.*$/, "").replace(/:\d+$/, "");
+    const isRemoteJidSelf =
+      params.selfE164 != null && normalizeE164(remoteDigits) === normalizeE164(params.selfE164);
+    if (params.isFromMe && !isRemoteJidSelf) {
+      logVerbose("Skipping outbound DM (fromMe to other contact); no pairing reply needed.");
       return {
         allowed: false,
         shouldMarkRead: false,

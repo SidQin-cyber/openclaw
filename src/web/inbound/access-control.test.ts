@@ -158,3 +158,83 @@ describe("WhatsApp dmPolicy precedence", () => {
     expect(sendMessageMock).not.toHaveBeenCalled();
   });
 });
+
+describe("WhatsApp selfChatMode outbound DM filtering (#32632)", () => {
+  it("blocks outbound DMs to third-party contacts in selfChatMode", async () => {
+    setAccessControlTestConfig({
+      channels: {
+        whatsapp: {
+          dmPolicy: "allowlist",
+          selfChatMode: true,
+          allowFrom: ["+15550009999"],
+        },
+      },
+    });
+
+    const result = await checkInboundAccessControl({
+      accountId: "default",
+      from: "+15550009999",
+      selfE164: "+15550009999",
+      senderE164: "+15550009999",
+      group: false,
+      pushName: "Owner",
+      isFromMe: true,
+      sock: { sendMessage: sendMessageMock },
+      remoteJid: "15557778888@s.whatsapp.net",
+    });
+
+    expect(result.allowed).toBe(false);
+  });
+
+  it("allows outbound DMs to self (note-to-self) in selfChatMode", async () => {
+    setAccessControlTestConfig({
+      channels: {
+        whatsapp: {
+          dmPolicy: "allowlist",
+          selfChatMode: true,
+          allowFrom: ["+15550009999"],
+        },
+      },
+    });
+
+    const result = await checkInboundAccessControl({
+      accountId: "default",
+      from: "+15550009999",
+      selfE164: "+15550009999",
+      senderE164: "+15550009999",
+      group: false,
+      pushName: "Owner",
+      isFromMe: true,
+      sock: { sendMessage: sendMessageMock },
+      remoteJid: "15550009999@s.whatsapp.net",
+    });
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it("handles JID with device suffix correctly (#32632)", async () => {
+    setAccessControlTestConfig({
+      channels: {
+        whatsapp: {
+          dmPolicy: "allowlist",
+          selfChatMode: true,
+          allowFrom: ["+15550009999"],
+        },
+      },
+    });
+
+    const result = await checkInboundAccessControl({
+      accountId: "default",
+      from: "+15550009999",
+      selfE164: "+15550009999",
+      senderE164: "+15550009999",
+      group: false,
+      pushName: "Owner",
+      isFromMe: true,
+      sock: { sendMessage: sendMessageMock },
+      remoteJid: "15550009999:1@s.whatsapp.net",
+    });
+
+    expect(result.allowed).toBe(true);
+  });
+});
