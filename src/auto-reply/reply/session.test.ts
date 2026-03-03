@@ -8,7 +8,7 @@ import type { SessionEntry } from "../../config/sessions.js";
 import { formatZonedTimestamp } from "../../infra/format-time/format-datetime.ts";
 import { enqueueSystemEvent, resetSystemEventsForTest } from "../../infra/system-events.js";
 import { applyResetModelOverride } from "./session-reset-model.js";
-import { buildQueuedSystemPrompt } from "./session-updates.js";
+import { buildQueuedSystemPrompt, resolveSystemEventTimezone } from "./session-updates.js";
 import { persistSessionUsageUpdate } from "./session-usage.js";
 import { initSessionState } from "./session.js";
 
@@ -1164,6 +1164,43 @@ describe("buildQueuedSystemPrompt", () => {
   });
 });
 
+describe("resolveSystemEventTimezone", () => {
+  it("uses userTimezone when envelopeTimezone is not set", () => {
+    const result = resolveSystemEventTimezone({
+      agents: { defaults: { userTimezone: "America/Vancouver" } },
+    } as OpenClawConfig);
+    expect(result).toEqual({ mode: "iana", timeZone: "America/Vancouver" });
+  });
+
+  it("uses userTimezone when envelopeTimezone is empty string", () => {
+    const result = resolveSystemEventTimezone({
+      agents: { defaults: { envelopeTimezone: "  ", userTimezone: "Asia/Tokyo" } },
+    } as OpenClawConfig);
+    expect(result).toEqual({ mode: "iana", timeZone: "Asia/Tokyo" });
+  });
+
+  it("returns utc for envelopeTimezone 'utc'", () => {
+    const result = resolveSystemEventTimezone({
+      agents: { defaults: { envelopeTimezone: "utc" } },
+    } as OpenClawConfig);
+    expect(result).toEqual({ mode: "utc" });
+  });
+
+  it("returns iana with resolved user timezone for envelopeTimezone 'user'", () => {
+    const result = resolveSystemEventTimezone({
+      agents: { defaults: { envelopeTimezone: "user", userTimezone: "Europe/Vienna" } },
+    } as OpenClawConfig);
+    expect(result).toEqual({ mode: "iana", timeZone: "Europe/Vienna" });
+  });
+
+  it("returns local for envelopeTimezone 'local'", () => {
+    const result = resolveSystemEventTimezone({
+      agents: { defaults: { envelopeTimezone: "local" } },
+    } as OpenClawConfig);
+    expect(result).toEqual({ mode: "local" });
+  });
+});
+
 describe("persistSessionUsageUpdate", () => {
   async function seedSessionStore(params: {
     storePath: string;
@@ -1363,6 +1400,30 @@ describe("initSessionState stale threadId fallback", () => {
     });
     expect(mainResult.sessionEntry.lastThreadId).toBeUndefined();
     expect(mainResult.sessionEntry.deliveryContext?.threadId).toBeUndefined();
+  });
+
+  it("does not inherit lastThreadId for topic-scoped sessions on retry", async () => {
+    const storePath = await createStorePath("topic-scoped-no-inherit-");
+    const sessionKey = "agent:main:telegram:group:123:topic:456";
+    await writeSessionStoreFast(storePath, {
+      [sessionKey]: {
+        sessionId: "topic-session-1",
+        updatedAt: Date.now(),
+        lastThreadId: 456,
+      },
+    });
+    const cfg = { session: { store: storePath } } as OpenClawConfig;
+
+    const result = await initSessionState({
+      ctx: {
+        Body: "retry without MessageThreadId",
+        SessionKey: sessionKey,
+      },
+      cfg,
+      commandAuthorized: true,
+    });
+
+    expect(result.sessionEntry.lastThreadId).toBeUndefined();
   });
 
   it("preserves lastThreadId within the same thread session", async () => {
