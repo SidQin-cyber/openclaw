@@ -350,6 +350,10 @@ export async function ensureLoaded(
         } else if (typeof payloadRecord.text === "string" && payloadRecord.text.trim()) {
           payloadRecord.kind = "systemEvent";
           mutated = true;
+        } else if (inferPayloadIfMissing(raw)) {
+          // Payload exists but is empty/invalid — re-infer from top-level
+          // legacy fields (command, message, text) that may still be present.
+          mutated = true;
         }
       }
       if (payloadRecord.kind === "agentTurn") {
@@ -357,6 +361,22 @@ export async function ensureLoaded(
           mutated = true;
         }
       }
+    }
+
+    // Migrate legacy top-level `timeout` (seconds) into the payload before
+    // stripping.  Only applies to agentTurn payloads that lack timeoutSeconds.
+    const currentPayload =
+      raw.payload && typeof raw.payload === "object" && !Array.isArray(raw.payload)
+        ? (raw.payload as Record<string, unknown>)
+        : null;
+    if (
+      currentPayload?.kind === "agentTurn" &&
+      typeof currentPayload.timeoutSeconds !== "number" &&
+      typeof raw.timeout === "number" &&
+      Number.isFinite(raw.timeout as number)
+    ) {
+      currentPayload.timeoutSeconds = Math.max(0, Math.floor(raw.timeout as number));
+      mutated = true;
     }
 
     const hadLegacyTopLevelFields =

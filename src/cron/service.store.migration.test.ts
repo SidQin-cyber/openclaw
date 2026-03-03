@@ -225,4 +225,62 @@ describe("cron store migration", () => {
       await store.cleanup();
     }
   });
+
+  it("infers payload from top-level command when payload exists but is empty", async () => {
+    const store = await makeStorePath();
+    try {
+      await writeLegacyStore(store.storePath, {
+        id: "legacy-empty-payload",
+        name: "Legacy Empty",
+        enabled: true,
+        createdAtMs: 1_700_000_000_000,
+        updatedAtMs: 1_700_000_000_000,
+        schedule: { kind: "cron", expr: "0 6 * * *" },
+        command: "echo hello",
+        payload: {},
+        state: {},
+      });
+
+      await migrateAndLoadFirstJob(store.storePath);
+      const loaded = await loadCronStore(store.storePath);
+      const migrated = loaded.jobs[0] as Record<string, unknown>;
+
+      expect(migrated.payload).toEqual({
+        kind: "systemEvent",
+        text: "echo hello",
+      });
+      expect("command" in migrated).toBe(false);
+    } finally {
+      await store.cleanup();
+    }
+  });
+
+  it("migrates legacy timeout into agentTurn payload timeoutSeconds", async () => {
+    const store = await makeStorePath();
+    try {
+      await writeLegacyStore(store.storePath, {
+        id: "legacy-timeout-migration",
+        name: "Legacy Timeout",
+        enabled: true,
+        createdAtMs: 1_700_000_000_000,
+        updatedAtMs: 1_700_000_000_000,
+        schedule: "30 8 * * *",
+        message: "run morning check",
+        timeout: 300,
+        state: {},
+      });
+
+      await migrateAndLoadFirstJob(store.storePath);
+      const loaded = await loadCronStore(store.storePath);
+      const migrated = loaded.jobs[0] as Record<string, unknown>;
+      const payload = migrated.payload as Record<string, unknown>;
+
+      expect(payload.kind).toBe("agentTurn");
+      expect(payload.message).toBe("run morning check");
+      expect(payload.timeoutSeconds).toBe(300);
+      expect("timeout" in migrated).toBe(false);
+    } finally {
+      await store.cleanup();
+    }
+  });
 });
