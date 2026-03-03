@@ -162,4 +162,19 @@ describe("cron schedule", () => {
       expect(next).toBe(noonMs + 86_400_000); // next day
     });
   });
+
+  it("does not return a past time when job finishes after the daily scheduled time (#33126)", () => {
+    // Job scheduled at 03:00 Asia/Shanghai (19:00 UTC prev day),
+    // finishes at 06:01:44 UTC (14:01 CST) — well after today's 03:00 CST
+    const endedAtMs = Date.parse("2026-03-03T06:01:44.000Z");
+    const next = computeNextRunAtMs(
+      { kind: "cron", expr: "0 3 * * *", tz: "Asia/Shanghai" },
+      endedAtMs,
+    );
+    // Next run should be 03:00 CST on March 4 = 19:00 UTC March 3
+    const expectedNext = Date.parse("2026-03-03T19:00:00.000Z");
+    expect(next).toBeDefined();
+    expect(next).toBeGreaterThan(endedAtMs);
+    expect(next).toBe(expectedNext);
+  });
 });

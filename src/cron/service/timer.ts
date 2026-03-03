@@ -414,6 +414,17 @@ export function applyJobResult(
         // so a persistent throw doesn't cause a MIN_REFIRE_GAP_MS hot loop.
         recordScheduleComputeError({ state, job, err });
       }
+      if (
+        job.schedule.kind === "cron" &&
+        naturalNext !== undefined &&
+        naturalNext <= result.endedAt
+      ) {
+        try {
+          naturalNext = computeJobNextRunAtMs(job, result.endedAt + 60_000);
+        } catch {
+          // ignore
+        }
+      }
       if (job.schedule.kind === "cron") {
         // Safety net: ensure the next fire is at least MIN_REFIRE_GAP_MS
         // after the current run ended.  Prevents spin-loops when the

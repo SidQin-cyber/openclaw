@@ -102,6 +102,17 @@ export function computeNextRunAtMs(schedule: CronSchedule, nowMs: number): numbe
         return retry2Ms;
       }
     }
+    // All retries returned past times — try one minute ahead as a last resort
+    // to work around timezone edge cases where the job finished after its
+    // daily scheduled time (#33126).
+    const oneMinuteAhead = nowMs + 60_000;
+    const retry3 = cron.nextRun(new Date(oneMinuteAhead));
+    if (retry3) {
+      const retry3Ms = retry3.getTime();
+      if (Number.isFinite(retry3Ms) && retry3Ms > nowMs) {
+        return retry3Ms;
+      }
+    }
     return undefined;
   }
 
