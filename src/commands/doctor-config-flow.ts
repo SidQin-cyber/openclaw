@@ -219,15 +219,21 @@ function normalizeBindingChannelKey(raw?: string | null): string {
   return (raw ?? "").trim().toLowerCase();
 }
 
-export function collectMissingDefaultAccountBindingWarnings(cfg: OpenClawConfig): string[] {
+type ChannelMissingDefaultAccountContext = {
+  channelKey: string;
+  channel: Record<string, unknown>;
+  normalizedAccountIds: string[];
+};
+
+function collectChannelsMissingDefaultAccount(
+  cfg: OpenClawConfig,
+): ChannelMissingDefaultAccountContext[] {
   const channels = asObjectRecord(cfg.channels);
   if (!channels) {
     return [];
   }
 
-  const bindings = Array.isArray(cfg.bindings) ? cfg.bindings : [];
-  const warnings: string[] = [];
-
+  const contexts: ChannelMissingDefaultAccountContext[] = [];
   for (const [channelKey, rawChannel] of Object.entries(channels)) {
     const channel = asObjectRecord(rawChannel);
     if (!channel) {
@@ -244,10 +250,20 @@ export function collectMissingDefaultAccountBindingWarnings(cfg: OpenClawConfig)
           .map((accountId) => normalizeAccountId(accountId))
           .filter(Boolean),
       ),
-    );
+    ).toSorted((a, b) => a.localeCompare(b));
     if (normalizedAccountIds.length === 0 || normalizedAccountIds.includes(DEFAULT_ACCOUNT_ID)) {
       continue;
     }
+    contexts.push({ channelKey, channel, normalizedAccountIds });
+  }
+  return contexts;
+}
+
+export function collectMissingDefaultAccountBindingWarnings(cfg: OpenClawConfig): string[] {
+  const bindings = Array.isArray(cfg.bindings) ? cfg.bindings : [];
+  const warnings: string[] = [];
+
+  for (const { channelKey, normalizedAccountIds } of collectChannelsMissingDefaultAccount(cfg)) {
     const accountIdSet = new Set(normalizedAccountIds);
     const channelPattern = normalizeBindingChannelKey(channelKey);
 
@@ -309,31 +325,11 @@ export function collectMissingDefaultAccountBindingWarnings(cfg: OpenClawConfig)
 }
 
 export function collectMissingExplicitDefaultAccountWarnings(cfg: OpenClawConfig): string[] {
-  const channels = asObjectRecord(cfg.channels);
-  if (!channels) {
-    return [];
-  }
-
   const warnings: string[] = [];
-  for (const [channelKey, rawChannel] of Object.entries(channels)) {
-    const channel = asObjectRecord(rawChannel);
-    if (!channel) {
-      continue;
-    }
-
-    const accounts = asObjectRecord(channel.accounts);
-    if (!accounts) {
-      continue;
-    }
-
-    const normalizedAccountIds = Array.from(
-      new Set(
-        Object.keys(accounts)
-          .map((accountId) => normalizeAccountId(accountId))
-          .filter(Boolean),
-      ),
-    ).toSorted((a, b) => a.localeCompare(b));
-    if (normalizedAccountIds.length < 2 || normalizedAccountIds.includes(DEFAULT_ACCOUNT_ID)) {
+  for (const { channelKey, channel, normalizedAccountIds } of collectChannelsMissingDefaultAccount(
+    cfg,
+  )) {
+    if (normalizedAccountIds.length < 2) {
       continue;
     }
 

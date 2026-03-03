@@ -66,6 +66,22 @@ describe("collectMissingExplicitDefaultAccountWarnings", () => {
     expect(collectMissingExplicitDefaultAccountWarnings(cfg)).toEqual([]);
   });
 
+  it("normalizes defaultAccount before validating configured account ids", () => {
+    const cfg: OpenClawConfig = {
+      channels: {
+        telegram: {
+          defaultAccount: "Router D",
+          accounts: {
+            "router-d": { botToken: "r" },
+            work: { botToken: "w" },
+          },
+        },
+      },
+    };
+
+    expect(collectMissingExplicitDefaultAccountWarnings(cfg)).toEqual([]);
+  });
+
   it("warns when defaultAccount is invalid for configured accounts", () => {
     const cfg: OpenClawConfig = {
       channels: {
