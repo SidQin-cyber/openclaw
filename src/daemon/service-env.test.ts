@@ -1,6 +1,7 @@
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveGatewayStateDir } from "./paths.js";
 import {
   buildMinimalServicePath,
@@ -11,7 +12,12 @@ import {
 } from "./service-env.js";
 
 describe("getMinimalServicePathParts - Linux user directories", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("includes user bin directories when HOME is set on Linux", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathParts({
       platform: "linux",
       home: "/home/testuser",
@@ -45,6 +51,7 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
   });
 
   it("places user directories before system directories on Linux", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathParts({
       platform: "linux",
       home: "/home/testuser",
@@ -59,6 +66,7 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
   });
 
   it("places extraDirs before user directories on Linux", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathParts({
       platform: "linux",
       home: "/home/testuser",
@@ -74,6 +82,7 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
   });
 
   it("includes env-configured bin roots when HOME is set on Linux", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathPartsFromEnv({
       platform: "linux",
       env: {
@@ -98,6 +107,7 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
   });
 
   it("includes version manager directories on macOS when HOME is set", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathParts({
       platform: "darwin",
       home: "/Users/testuser",
@@ -124,6 +134,7 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
   });
 
   it("includes env-configured version manager dirs on macOS", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathPartsFromEnv({
       platform: "darwin",
       env: {
@@ -143,6 +154,7 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
   });
 
   it("places version manager dirs before system dirs on macOS", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = getMinimalServicePathParts({
       platform: "darwin",
       home: "/Users/testuser",
@@ -159,6 +171,26 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
     expect(fnmIndex).toBeLessThan(homebrewIndex);
   });
 
+  it("excludes non-existent user bin directories (#32448)", () => {
+    vi.spyOn(fs, "existsSync").mockImplementation((p) => {
+      const s = String(p);
+      return s === "/home/testuser/.local/bin" || s === "/home/testuser/.nvm/current/bin";
+    });
+    const result = getMinimalServicePathParts({
+      platform: "linux",
+      home: "/home/testuser",
+    });
+
+    expect(result).toContain("/home/testuser/.local/bin");
+    expect(result).toContain("/home/testuser/.nvm/current/bin");
+    expect(result).not.toContain("/home/testuser/.npm-global/bin");
+    expect(result).not.toContain("/home/testuser/.volta/bin");
+    expect(result).not.toContain("/home/testuser/.fnm/current/bin");
+    expect(result).not.toContain("/home/testuser/.bun/bin");
+    // System directories are always included (no existence check)
+    expect(result).toContain("/usr/local/bin");
+  });
+
   it("does not include Linux user directories on Windows", () => {
     const result = getMinimalServicePathParts({
       platform: "win32",
@@ -171,6 +203,10 @@ describe("getMinimalServicePathParts - Linux user directories", () => {
 });
 
 describe("buildMinimalServicePath", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const splitPath = (value: string, platform: NodeJS.Platform) =>
     value.split(platform === "win32" ? path.win32.delimiter : path.posix.delimiter);
 
@@ -194,6 +230,7 @@ describe("buildMinimalServicePath", () => {
   });
 
   it("includes Linux user directories when HOME is set in env", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = buildMinimalServicePath({
       platform: "linux",
       env: { HOME: "/home/alice" },
@@ -226,6 +263,7 @@ describe("buildMinimalServicePath", () => {
   });
 
   it("ensures user directories come before system directories on Linux", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = buildMinimalServicePath({
       platform: "linux",
       env: { HOME: "/home/bob" },
