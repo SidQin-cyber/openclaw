@@ -1015,7 +1015,7 @@ describe("runHeartbeatOnce", () => {
 
   async function runHeartbeatFileScenario(params: {
     fileState: HeartbeatFileState;
-    reason?: "interval" | "wake";
+    reason?: string;
     queueCronEvent?: boolean;
     replyText?: string;
   }) {
@@ -1087,7 +1087,7 @@ describe("runHeartbeatOnce", () => {
     const cases: Array<{
       name: string;
       fileState: HeartbeatFileState;
-      reason?: "interval" | "wake";
+      reason?: string;
       queueCronEvent?: boolean;
       expectedStatus: "ran" | "skipped";
       expectedSkipReason?: "empty-heartbeat-file";
@@ -1123,6 +1123,14 @@ describe("runHeartbeatOnce", () => {
         expectedReplyCalls: 1,
         expectCronContext: true,
         replyText: "Relay this cron update now",
+      },
+      {
+        name: "empty file + cron-triggered reason bypasses file gate",
+        fileState: "empty",
+        reason: "cron:my-system-job",
+        expectedStatus: "ran",
+        expectedSendCalls: 1,
+        expectedReplyCalls: 1,
       },
       {
         name: "actionable file runs",
