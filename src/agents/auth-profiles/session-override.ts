@@ -5,7 +5,24 @@ import {
   isProfileInCooldown,
   resolveAuthProfileOrder,
 } from "../auth-profiles.js";
+import type { AuthProfileStore } from "../auth-profiles/types.js";
 import { normalizeProviderId } from "../model-selection.js";
+
+function findMostRecentlyUsedInOrder(store: AuthProfileStore, order: string[]): string | undefined {
+  if (order.length === 0 || !store.usageStats) {
+    return undefined;
+  }
+  let bestId: string | undefined;
+  let bestTs = -1;
+  for (const profileId of order) {
+    const ts = store.usageStats[profileId]?.lastUsed ?? 0;
+    if (ts > bestTs) {
+      bestTs = ts;
+      bestId = profileId;
+    }
+  }
+  return bestTs > 0 ? bestId : undefined;
+}
 
 function isProfileForProvider(params: {
   provider: string;
@@ -120,7 +137,12 @@ export async function resolveSessionAuthProfileOverride(params: {
 
   let next = current;
   if (isNewSession) {
-    next = current ? pickNextAvailable(current) : pickFirstAvailable();
+    if (current) {
+      next = pickNextAvailable(current);
+    } else {
+      const lastUsedId = findMostRecentlyUsedInOrder(store, order);
+      next = lastUsedId ? pickNextAvailable(lastUsedId) : pickFirstAvailable();
+    }
   } else if (current && compactionCount > storedCompaction) {
     next = pickNextAvailable(current);
   } else if (!current || isProfileInCooldown(store, current)) {
