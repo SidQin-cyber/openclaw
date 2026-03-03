@@ -426,6 +426,7 @@ export async function dispatchReplyFromConfig(params: {
               await sendPayloadAsync(ttsPayload, context?.abortSignal, false);
             } else {
               dispatcher.sendBlockReply(ttsPayload);
+              await dispatcher.waitForIdle();
             }
           };
           return run();
