@@ -1,6 +1,6 @@
 import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
 import { parseReplyDirectives } from "../auto-reply/reply/reply-directives.js";
-import { SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
+import { isSilentReplyPrefixText, SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
 import { emitAgentEvent } from "../infra/agent-events.js";
 import { createInlineCodeState } from "../markdown/code-spans.js";
 import {
@@ -232,10 +232,12 @@ export function handleMessageUpdate(
       });
       ctx.state.emittedAssistantUpdate = true;
       if (ctx.params.onPartialReply && ctx.state.shouldEmitPartialReplies) {
-        void ctx.params.onPartialReply({
-          text: cleanedText,
-          mediaUrls: hasMedia ? mediaUrls : undefined,
-        });
+        if (!isSilentReplyPrefixText(cleanedText, SILENT_REPLY_TOKEN)) {
+          void ctx.params.onPartialReply({
+            text: cleanedText,
+            mediaUrls: hasMedia ? mediaUrls : undefined,
+          });
+        }
       }
     }
   }
