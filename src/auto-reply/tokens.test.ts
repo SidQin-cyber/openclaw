@@ -81,10 +81,19 @@ describe("isSilentReplyPrefixText", () => {
     expect(isSilentReplyPrefixText("  HEARTBEAT_", "HEARTBEAT_OK")).toBe(true);
   });
 
-  it("rejects ambiguous natural-language prefixes", () => {
-    expect(isSilentReplyPrefixText("N")).toBe(false);
-    expect(isSilentReplyPrefixText("No")).toBe(false);
+  it("matches pure-alpha prefixes before the underscore arrives (#32168)", () => {
+    expect(isSilentReplyPrefixText("N")).toBe(true);
+    expect(isSilentReplyPrefixText("NO")).toBe(true);
+    expect(isSilentReplyPrefixText("No")).toBe(true);
+    expect(isSilentReplyPrefixText("  NO")).toBe(true);
+    expect(isSilentReplyPrefixText("H", "HEARTBEAT_OK")).toBe(true);
+    expect(isSilentReplyPrefixText("HEART", "HEARTBEAT_OK")).toBe(true);
+  });
+
+  it("rejects non-prefix alpha strings", () => {
     expect(isSilentReplyPrefixText("Hello")).toBe(false);
+    expect(isSilentReplyPrefixText("X")).toBe(false);
+    expect(isSilentReplyPrefixText("Not")).toBe(false);
   });
 
   it("rejects non-prefixes and mixed characters", () => {

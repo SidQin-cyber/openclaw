@@ -60,9 +60,6 @@ export function isSilentReplyPrefixText(
   if (!normalized) {
     return false;
   }
-  if (!normalized.includes("_")) {
-    return false;
-  }
   if (/[^A-Z_]/.test(normalized)) {
     return false;
   }
