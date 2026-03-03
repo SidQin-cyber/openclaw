@@ -1499,4 +1499,41 @@ describe("Cron issue regressions", () => {
     expect(job.state.nextRunAtMs).toBe(endedAt + 30_000);
     expect(job.enabled).toBe(true);
   });
+
+  it("recovers a job with missing nextRunAtMs after restart (#33092)", async () => {
+    const store = makeStorePath();
+    const now = Date.parse("2026-02-06T10:05:00.000Z");
+    const pastDue = now - 120_000;
+    await writeCronStoreSnapshot(store.storePath, [
+      {
+        id: "missing-next-run",
+        name: "missing nextRunAtMs",
+        enabled: true,
+        createdAtMs: pastDue - 86_400_000,
+        updatedAtMs: pastDue,
+        schedule: { kind: "every", everyMs: 60_000, anchorMs: pastDue - 86_400_000 },
+        sessionTarget: "main",
+        wakeMode: "now",
+        payload: { kind: "systemEvent", text: "recover me" },
+        state: {},
+      },
+    ]);
+
+    const enqueueSystemEvent = vi.fn();
+    const cron = await startCronForStore({
+      storePath: store.storePath,
+      enqueueSystemEvent,
+    });
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    const jobs = await cron.list({ includeDisabled: true });
+    const recovered = jobs.find((j) => j.id === "missing-next-run");
+    expect(recovered).toBeDefined();
+    expect(typeof recovered?.state.nextRunAtMs).toBe("number");
+    expect(Number.isFinite(recovered?.state.nextRunAtMs)).toBe(true);
+    expect(recovered!.state.nextRunAtMs).toBeGreaterThan(now);
+
+    cron.stop();
+  });
 });

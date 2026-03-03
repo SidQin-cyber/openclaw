@@ -106,6 +106,7 @@ export async function start(state: CronServiceState) {
         startupInterruptedJobIds.add(job.id);
       }
     }
+    recomputeNextRunsForMaintenance(state);
     await persist(state);
   });
 
