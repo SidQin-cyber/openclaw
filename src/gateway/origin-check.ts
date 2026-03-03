@@ -45,6 +45,24 @@ export function checkBrowserOrigin(params: {
     return { ok: true, matchedBy: "allowlist" };
   }
 
+  // Treat all loopback hostnames (localhost, 127.0.0.1, [::1]) as equivalent
+  // when matching against the allowlist.  This handles Docker/container scenarios
+  // where the browser origin uses "localhost" but the seeded allowlist contains
+  // "127.0.0.1" (or vice versa).
+  if (isLoopbackHost(parsedOrigin.hostname)) {
+    for (const allowed of allowlist) {
+      const parsedAllowed = parseOrigin(allowed);
+      if (
+        parsedAllowed &&
+        isLoopbackHost(parsedAllowed.hostname) &&
+        parsedOrigin.origin.replace(parsedOrigin.hostname, "") ===
+          parsedAllowed.origin.replace(parsedAllowed.hostname, "")
+      ) {
+        return { ok: true, matchedBy: "allowlist" };
+      }
+    }
+  }
+
   const requestHost = normalizeHostHeader(params.requestHost);
   if (
     params.allowHostHeaderOriginFallback === true &&

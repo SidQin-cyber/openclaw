@@ -100,4 +100,37 @@ describe("checkBrowserOrigin", () => {
     });
     expect(result.ok).toBe(true);
   });
+
+  it("accepts localhost origin when allowlist has 127.0.0.1 with same port (Docker)", () => {
+    const result = checkBrowserOrigin({
+      requestHost: "127.0.0.1:18789",
+      origin: "http://localhost:18789",
+      allowedOrigins: ["http://127.0.0.1:18789"],
+      isLocalClient: false,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.matchedBy).toBe("allowlist");
+    }
+  });
+
+  it("accepts 127.0.0.1 origin when allowlist has localhost with same port (Docker)", () => {
+    const result = checkBrowserOrigin({
+      requestHost: "localhost:18789",
+      origin: "http://127.0.0.1:18789",
+      allowedOrigins: ["http://localhost:18789"],
+      isLocalClient: false,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects loopback equivalence when ports differ", () => {
+    const result = checkBrowserOrigin({
+      requestHost: "localhost:18789",
+      origin: "http://localhost:5173",
+      allowedOrigins: ["http://127.0.0.1:18789"],
+      isLocalClient: false,
+    });
+    expect(result.ok).toBe(false);
+  });
 });
