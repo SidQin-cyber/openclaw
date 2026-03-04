@@ -29,7 +29,9 @@ function stubParams(overrides: Partial<Parameters<typeof createGatewayCloseHandl
     configReloader: { stop: vi.fn(async () => {}) },
     browserControl: null,
     wss: wss as unknown as Parameters<typeof createGatewayCloseHandler>[0]["wss"],
-    httpServer: httpServer as unknown as Parameters<typeof createGatewayCloseHandler>[0]["httpServer"],
+    httpServer: httpServer as unknown as Parameters<
+      typeof createGatewayCloseHandler
+    >[0]["httpServer"],
     ...overrides,
   } satisfies Parameters<typeof createGatewayCloseHandler>[0];
 }
