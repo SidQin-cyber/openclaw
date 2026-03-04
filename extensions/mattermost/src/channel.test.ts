@@ -240,6 +240,75 @@ describe("mattermostPlugin", () => {
         }),
       );
     });
+
+    it("sendText uses threadId as fallback when replyToId is absent", async () => {
+      const sendText = mattermostPlugin.outbound?.sendText;
+      if (!sendText) return;
+
+      await sendText({
+        to: "channel:CHAN1",
+        text: "threaded reply",
+        threadId: "root-post-42",
+      } as any);
+
+      expect(sendMessageMattermostMock).toHaveBeenCalledWith(
+        "channel:CHAN1",
+        "threaded reply",
+        expect.objectContaining({ replyToId: "root-post-42" }),
+      );
+    });
+
+    it("sendText prefers replyToId over threadId", async () => {
+      const sendText = mattermostPlugin.outbound?.sendText;
+      if (!sendText) return;
+
+      await sendText({
+        to: "channel:CHAN1",
+        text: "explicit reply",
+        replyToId: "reply-target",
+        threadId: "thread-fallback",
+      } as any);
+
+      expect(sendMessageMattermostMock).toHaveBeenCalledWith(
+        "channel:CHAN1",
+        "explicit reply",
+        expect.objectContaining({ replyToId: "reply-target" }),
+      );
+    });
+
+    it("sendMedia uses threadId as fallback when replyToId is absent", async () => {
+      const sendMedia = mattermostPlugin.outbound?.sendMedia;
+      if (!sendMedia) return;
+
+      await sendMedia({
+        to: "channel:CHAN1",
+        text: "media in thread",
+        mediaUrl: "/img.png",
+        threadId: "root-post-99",
+      } as any);
+
+      expect(sendMessageMattermostMock).toHaveBeenCalledWith(
+        "channel:CHAN1",
+        "media in thread",
+        expect.objectContaining({ replyToId: "root-post-99" }),
+      );
+    });
+
+    it("sendText omits replyToId when both are absent", async () => {
+      const sendText = mattermostPlugin.outbound?.sendText;
+      if (!sendText) return;
+
+      await sendText({
+        to: "channel:CHAN1",
+        text: "no thread context",
+      } as any);
+
+      expect(sendMessageMattermostMock).toHaveBeenCalledWith(
+        "channel:CHAN1",
+        "no thread context",
+        expect.objectContaining({ replyToId: undefined }),
+      );
+    });
   });
 
   describe("config", () => {
