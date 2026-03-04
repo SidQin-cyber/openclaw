@@ -44,6 +44,9 @@ export function createGatewayCloseHandler(params: {
       } catch {
         /* ignore */
       }
+      // Allow mDNS goodbye packets to propagate before re-registering
+      // on in-process restart, preventing name-conflict loops (#33609).
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
     if (params.tailscaleCleanup) {
       await params.tailscaleCleanup();
