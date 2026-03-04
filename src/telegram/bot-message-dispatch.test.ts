@@ -1625,14 +1625,8 @@ describe("dispatchTelegramMessage draft streaming", () => {
     dispatchReplyWithBufferedBlockDispatcher.mockImplementation(
       async ({ dispatcherOptions, replyOptions }) => {
         await replyOptions?.onPartialReply?.({ text: "Let me check that for you." });
-        await dispatcherOptions.deliver(
-          { text: "🔧 exec: ls -la" },
-          { kind: "tool" },
-        );
-        await dispatcherOptions.deliver(
-          { text: "Let me check that for you." },
-          { kind: "final" },
-        );
+        await dispatcherOptions.deliver({ text: "🔧 exec: ls -la" }, { kind: "tool" });
+        await dispatcherOptions.deliver({ text: "Let me check that for you." }, { kind: "final" });
         return { queuedFinal: true };
       },
     );
@@ -1670,10 +1664,7 @@ describe("dispatchTelegramMessage draft streaming", () => {
           { kind: "final" },
         );
         // Verbose session notice arrives after the response
-        await dispatcherOptions.deliver(
-          { text: "🧭 New session: abc-123" },
-          { kind: "final" },
-        );
+        await dispatcherOptions.deliver({ text: "🧭 New session: abc-123" }, { kind: "final" });
         return { queuedFinal: true };
       },
     );
