@@ -497,7 +497,17 @@ export const agentHandlers: GatewayRequestHandlers = {
       }
     }
 
-    const wantsDelivery = request.deliver === true;
+    const interSessionHasBoundChannel =
+      !request.deliver &&
+      inputProvenance?.kind === "inter_session" &&
+      sessionEntry != null &&
+      isDeliverableMessageChannel(sessionEntry.lastChannel) &&
+      typeof sessionEntry.lastTo === "string" &&
+      sessionEntry.lastTo.trim().length > 0;
+    const wantsDelivery = request.deliver === true || interSessionHasBoundChannel;
+    const effectiveChannel = interSessionHasBoundChannel
+      ? "last"
+      : (request.replyChannel ?? request.channel);
     const explicitTo =
       typeof request.replyTo === "string" && request.replyTo.trim()
         ? request.replyTo.trim()
@@ -520,7 +530,7 @@ export const agentHandlers: GatewayRequestHandlers = {
         : undefined;
     const deliveryPlan = resolveAgentDeliveryPlan({
       sessionEntry,
-      requestedChannel: request.replyChannel ?? request.channel,
+      requestedChannel: effectiveChannel,
       explicitTo,
       explicitThreadId,
       accountId: request.replyAccountId ?? request.accountId,
@@ -591,7 +601,7 @@ export const agentHandlers: GatewayRequestHandlers = {
         ? INTERNAL_MESSAGE_CHANNEL
         : resolvedChannel);
 
-    const deliver = request.deliver === true && resolvedChannel !== INTERNAL_MESSAGE_CHANNEL;
+    const deliver = wantsDelivery && resolvedChannel !== INTERNAL_MESSAGE_CHANNEL;
 
     const accepted = {
       runId,

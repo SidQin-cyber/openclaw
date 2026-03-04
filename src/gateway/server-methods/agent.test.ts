@@ -597,4 +597,52 @@ describe("gateway agent handler", () => {
       }),
     );
   });
+
+  it("enables delivery for inter-session messages when target session has a bound channel", async () => {
+    mockMainSessionEntry({
+      sessionId: "existing-session-id",
+      lastChannel: "telegram",
+      lastTo: "telegram:6812765697",
+      lastAccountId: "default",
+    });
+    mocks.updateSessionStore.mockImplementation(async (_path, updater) => {
+      const store: Record<string, unknown> = {
+        "agent:main:main": buildExistingMainStoreEntry({
+          lastChannel: "telegram",
+          lastTo: "telegram:6812765697",
+          lastAccountId: "default",
+        }),
+      };
+      return await updater(store);
+    });
+    mocks.agentCommand.mockResolvedValue({
+      payloads: [{ text: "ok" }],
+      meta: { durationMs: 100 },
+    });
+
+    await invokeAgent(
+      {
+        message: "inter-session message",
+        sessionKey: "agent:main:main",
+        deliver: false,
+        channel: "webchat",
+        idempotencyKey: "test-inter-session-delivery",
+        inputProvenance: {
+          kind: "inter_session",
+          sourceSessionKey: "agent:main:other-session",
+          sourceChannel: "webchat",
+          sourceTool: "sessions_send",
+        },
+      },
+      { reqId: "inter-session-1" },
+    );
+
+    await vi.waitFor(() => expect(mocks.agentCommand).toHaveBeenCalled());
+    const callArgs = mocks.agentCommand.mock.calls.at(-1)?.[0] as {
+      channel?: string;
+      deliver?: boolean;
+    };
+    expect(callArgs.channel).toBe("telegram");
+    expect(callArgs.deliver).toBe(true);
+  });
 });
