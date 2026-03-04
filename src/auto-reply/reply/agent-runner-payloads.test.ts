@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildReplyPayloads } from "./agent-runner-payloads.js";
+import { createBlockReplyPipeline } from "./block-reply-pipeline.js";
 
 const baseParams = {
   isHeartbeat: false,
@@ -135,5 +136,57 @@ describe("buildReplyPayloads media filter integration", () => {
 
     expect(replyPayloads).toHaveLength(1);
     expect(replyPayloads[0]?.text).toBe("hello world!");
+  });
+});
+
+describe("block reply pipeline force-flush after abort (#34449)", () => {
+  it("delivers buffered content on force-flush even after timeout abort", async () => {
+    const delivered: string[] = [];
+    let deliverDelay = 0;
+    const pipeline = createBlockReplyPipeline({
+      onBlockReply: async (payload) => {
+        if (deliverDelay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, deliverDelay));
+        }
+        delivered.push(payload.text ?? "");
+      },
+      timeoutMs: 50,
+    });
+
+    pipeline.enqueue({ text: "chunk 1" });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    deliverDelay = 200;
+    pipeline.enqueue({ text: "chunk 2 (will timeout)" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    expect(pipeline.isAborted()).toBe(true);
+
+    pipeline.enqueue({ text: "chunk 3 (dropped by abort)" });
+
+    await pipeline.flush({ force: true });
+
+    expect(delivered).toContain("chunk 1");
+  });
+
+  it("does not deliver new enqueue calls after abort without force-flush", async () => {
+    const delivered: string[] = [];
+    const pipeline = createBlockReplyPipeline({
+      onBlockReply: async (payload) => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        delivered.push(payload.text ?? "");
+      },
+      timeoutMs: 50,
+    });
+
+    pipeline.enqueue({ text: "chunk 1 (will timeout)" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    expect(pipeline.isAborted()).toBe(true);
+
+    pipeline.enqueue({ text: "chunk 2 (should be dropped)" });
+    await pipeline.flush();
+
+    expect(delivered).not.toContain("chunk 2 (should be dropped)");
   });
 });

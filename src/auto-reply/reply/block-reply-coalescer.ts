@@ -3,7 +3,7 @@ import type { BlockStreamingCoalescing } from "./block-streaming.js";
 
 export type BlockReplyCoalescer = {
   enqueue: (payload: ReplyPayload) => void;
-  flush: (options?: { force?: boolean }) => Promise<void>;
+  flush: (options?: { force?: boolean; bypassAbort?: boolean }) => Promise<void>;
   hasBuffered: () => boolean;
   stop: () => void;
 };
@@ -49,9 +49,9 @@ export function createBlockReplyCoalescer(params: {
     }, idleMs);
   };
 
-  const flush = async (options?: { force?: boolean }) => {
+  const flush = async (options?: { force?: boolean; bypassAbort?: boolean }) => {
     clearIdleTimer();
-    if (shouldAbort()) {
+    if (shouldAbort() && !options?.bypassAbort) {
       resetBuffer();
       return;
     }

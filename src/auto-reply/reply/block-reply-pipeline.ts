@@ -87,11 +87,12 @@ export function createBlockReplyPipeline(params: {
   const bufferedPayloads: ReplyPayload[] = [];
   let sendChain: Promise<void> = Promise.resolve();
   let aborted = false;
+  let forceDeliveryActive = false;
   let didStream = false;
   let didLogTimeout = false;
 
   const sendPayload = (payload: ReplyPayload, bypassSeenCheck: boolean = false) => {
-    if (aborted) {
+    if (aborted && !forceDeliveryActive) {
       return;
     }
     const payloadKey = createBlockReplyPayloadKey(payload);
@@ -108,19 +109,21 @@ export function createBlockReplyPipeline(params: {
 
     const timeoutError = new Error(`block reply delivery timed out after ${timeoutMs}ms`);
     const abortController = new AbortController();
+    const isForced = forceDeliveryActive;
     sendChain = sendChain
       .then(async () => {
-        if (aborted) {
+        if (aborted && !isForced) {
           return false;
         }
+        const effectiveTimeoutMs = isForced ? 0 : timeoutMs;
         await withTimeout(
           Promise.resolve(
             onBlockReply(payload, {
               abortSignal: abortController.signal,
-              timeoutMs,
+              timeoutMs: effectiveTimeoutMs,
             }),
           ),
-          timeoutMs,
+          effectiveTimeoutMs,
           timeoutError,
         );
         return true;
@@ -221,9 +224,13 @@ export function createBlockReplyPipeline(params: {
   };
 
   const flush = async (options?: { force?: boolean }) => {
-    await coalescer?.flush(options);
+    if (options?.force && aborted) {
+      forceDeliveryActive = true;
+    }
+    await coalescer?.flush(forceDeliveryActive ? { force: true, bypassAbort: true } : options);
     flushBuffered();
     await sendChain;
+    forceDeliveryActive = false;
   };
 
   const stop = () => {
