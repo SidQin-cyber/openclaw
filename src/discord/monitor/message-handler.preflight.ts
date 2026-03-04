@@ -189,8 +189,8 @@ export async function preflightDiscordMessage(
   if (isPreflightAborted(params.abortSignal)) {
     return null;
   }
-  const isDirectMessage = channelInfo?.type === ChannelType.DM;
-  const isGroupDm = channelInfo?.type === ChannelType.GroupDM;
+  const isDirectMessage = !isGuildMessage && channelInfo?.type === ChannelType.DM;
+  const isGroupDm = !isGuildMessage && channelInfo?.type === ChannelType.GroupDM;
   logDebug(
     `[discord-preflight] channelId=${messageChannelId} guild_id=${params.data.guild_id} channelType=${channelInfo?.type} isGuild=${isGuildMessage} isDM=${isDirectMessage} isGroupDm=${isGroupDm}`,
   );

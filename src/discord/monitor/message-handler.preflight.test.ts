@@ -822,6 +822,82 @@ describe("preflightDiscordMessage", () => {
     expect(result).not.toBeNull();
     expect(result?.wasMentioned).toBe(true);
   });
+
+  it("drops guild messages without mention even when channelInfo reports DM type (stale cache)", async () => {
+    const channelId = "channel-guild-but-dm-type";
+    const guildId = "guild-requiremention-regression";
+    const client = {
+      fetchChannel: async (id: string) => {
+        if (id === channelId) {
+          return {
+            id: channelId,
+            type: ChannelType.DM,
+            name: undefined,
+          };
+        }
+        return null;
+      },
+    } as unknown as import("@buape/carbon").Client;
+    const message = {
+      id: "m-guild-dm-type",
+      content: "hello without mention",
+      timestamp: new Date().toISOString(),
+      channelId,
+      attachments: [],
+      mentionedUsers: [],
+      mentionedRoles: [],
+      mentionedEveryone: false,
+      author: {
+        id: "user-1",
+        bot: false,
+        username: "Alice",
+      },
+    } as unknown as import("@buape/carbon").Message;
+
+    const result = await preflightDiscordMessage({
+      cfg: {
+        session: {
+          mainKey: "main",
+          scope: "per-sender",
+        },
+      } as import("../../config/config.js").OpenClawConfig,
+      discordConfig: {} as NonNullable<
+        import("../../config/config.js").OpenClawConfig["channels"]
+      >["discord"],
+      accountId: "default",
+      token: "token",
+      runtime: {} as import("../../runtime.js").RuntimeEnv,
+      botUserId: "openclaw-bot",
+      guildHistories: new Map(),
+      historyLimit: 0,
+      mediaMaxBytes: 1_000_000,
+      textLimit: 2_000,
+      replyToMode: "all",
+      dmEnabled: true,
+      groupDmEnabled: true,
+      ackReactionScope: "direct",
+      groupPolicy: "open",
+      threadBindings: createNoopThreadBindingManager("default"),
+      guildEntries: {
+        [guildId]: {
+          requireMention: true,
+        },
+      },
+      data: {
+        channel_id: channelId,
+        guild_id: guildId,
+        guild: {
+          id: guildId,
+          name: "Guild One",
+        },
+        author: message.author,
+        message,
+      } as unknown as import("./listeners.js").DiscordMessageEvent,
+      client,
+    });
+
+    expect(result).toBeNull();
+  });
 });
 
 describe("shouldIgnoreBoundThreadWebhookMessage", () => {
