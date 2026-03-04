@@ -173,4 +173,24 @@ describe("config secret refs schema", () => {
       ).toBe(true);
     }
   });
+
+  it("preserves custom user-defined keys in secrets section (#33623)", () => {
+    const result = validateConfigObjectRaw({
+      secrets: {
+        providers: {
+          default: { source: "env" },
+        },
+        brave_api_key: "test-brave-key-123",
+        custom_news_token: "tok_abc",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const secrets = result.config.secrets as Record<string, unknown>;
+      expect(secrets.brave_api_key).toBe("test-brave-key-123");
+      expect(secrets.custom_news_token).toBe("tok_abc");
+      expect(secrets.providers).toEqual({ default: { source: "env" } });
+    }
+  });
 });
