@@ -34,6 +34,7 @@ import {
   buildPermissionArgs,
   deriveAgentFromSessionKey,
   isRecord,
+  resolveAcpxSubcommand,
   type AcpxHandleState,
   type AcpxJsonObject,
 } from "./runtime-internals/shared.js";
@@ -172,10 +173,11 @@ export class AcpxRuntime implements AcpRuntime {
     if (!sessionName) {
       throw new AcpRuntimeError("ACP_SESSION_INIT_FAILED", "ACP session key is required.");
     }
-    const agent = asTrimmedString(input.agent);
-    if (!agent) {
+    const rawAgent = asTrimmedString(input.agent);
+    if (!rawAgent) {
       throw new AcpRuntimeError("ACP_SESSION_INIT_FAILED", "ACP agent id is required.");
     }
+    const agent = resolveAcpxSubcommand(rawAgent);
     const cwd = asTrimmedString(input.cwd) || this.config.cwd;
     const mode = input.mode;
 
@@ -515,7 +517,7 @@ export class AcpxRuntime implements AcpRuntime {
   private resolveHandleState(handle: AcpRuntimeHandle): AcpxHandleState {
     const decoded = decodeAcpxRuntimeHandleState(handle.runtimeSessionName);
     if (decoded) {
-      return decoded;
+      return { ...decoded, agent: resolveAcpxSubcommand(decoded.agent) };
     }
 
     const legacyName = asTrimmedString(handle.runtimeSessionName);
@@ -528,7 +530,9 @@ export class AcpxRuntime implements AcpRuntime {
 
     return {
       name: legacyName,
-      agent: deriveAgentFromSessionKey(handle.sessionKey, DEFAULT_AGENT_FALLBACK),
+      agent: resolveAcpxSubcommand(
+        deriveAgentFromSessionKey(handle.sessionKey, DEFAULT_AGENT_FALLBACK),
+      ),
       cwd: this.config.cwd,
       mode: "persistent",
     };

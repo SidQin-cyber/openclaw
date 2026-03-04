@@ -45,6 +45,33 @@ export function deriveAgentFromSessionKey(sessionKey: string, fallbackAgent: str
   return candidate || fallbackAgent;
 }
 
+const AGENT_TO_ACPX_SUBCOMMAND: Record<string, string> = {
+  codex: "codex",
+  "openai-codex": "codex",
+  "codex-cli": "codex",
+  claude: "claude",
+  "claude-code": "claude",
+  claudecode: "claude",
+  gemini: "gemini",
+  opencode: "opencode",
+  pi: "pi",
+  kimi: "kimi",
+  "moonshot-kimi": "kimi",
+};
+
+/**
+ * Map an OpenClaw agentId to the acpx CLI subcommand.
+ * acpx expects subcommands like `codex`, `claude`, `gemini` —
+ * not OpenClaw-style identifiers like `openai-codex`.
+ */
+export function resolveAcpxSubcommand(agentId: string): string {
+  const key = agentId
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, "-");
+  return AGENT_TO_ACPX_SUBCOMMAND[key] ?? agentId;
+}
+
 export function buildPermissionArgs(mode: ResolvedAcpxPluginConfig["permissionMode"]): string[] {
   if (mode === "approve-all") {
     return ["--approve-all"];
