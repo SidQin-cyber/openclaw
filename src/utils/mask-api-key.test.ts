@@ -14,7 +14,14 @@ describe("maskApiKey", () => {
     expect(maskApiKey(" ab ")).toBe("a...b");
   });
 
-  it("masks long values with first and last 8 chars", () => {
-    expect(maskApiKey("1234567890abcdefghijklmnop")).toBe("12345678...ijklmnop");
+  it("masks long values with first and last 4 chars", () => {
+    expect(maskApiKey("1234567890abcdefghijklmnop")).toBe("1234...mnop");
+  });
+
+  it("never reveals more than 8 characters total", () => {
+    const key = "sk-ant-api03-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+    const masked = maskApiKey(key);
+    const revealed = masked.replace("...", "");
+    expect(revealed.length).toBeLessThanOrEqual(8);
   });
 });
