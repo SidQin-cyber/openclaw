@@ -120,6 +120,10 @@ export function resolveModel(
           configuredModel?.maxTokens ??
           providerCfg?.models?.[0]?.maxTokens ??
           DEFAULT_CONTEXT_TOKENS,
+        headers:
+          providerCfg?.headers || configuredModel?.headers
+            ? { ...providerCfg?.headers, ...configuredModel?.headers }
+            : undefined,
       } as Model<Api>);
       return { model: fallbackModel, authStorage, modelRegistry };
     }
@@ -129,9 +133,7 @@ export function resolveModel(
       modelRegistry,
     };
   }
-  const providerOverride = cfg?.models?.providers?.[provider] as
-    | InlineProviderConfig
-    | undefined;
+  const providerOverride = cfg?.models?.providers?.[provider] as InlineProviderConfig | undefined;
   if (providerOverride?.baseUrl || providerOverride?.headers) {
     const overridden: Model<Api> & { headers?: Record<string, string> } = { ...model };
     if (providerOverride.baseUrl) {

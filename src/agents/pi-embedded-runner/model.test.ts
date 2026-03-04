@@ -201,6 +201,28 @@ describe("resolveModel", () => {
     expect(result.model?.id).toBe("missing-model");
   });
 
+  it("includes provider headers in provider fallback model", () => {
+    const cfg = {
+      models: {
+        providers: {
+          custom: {
+            baseUrl: "http://localhost:9000",
+            headers: { "X-Custom-Auth": "token-123" },
+            models: [makeModel("listed-model")],
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    // Requesting a non-listed model forces the providerCfg fallback branch.
+    const result = resolveModel("custom", "missing-model", "/tmp/agent", cfg);
+
+    expect(result.error).toBeUndefined();
+    expect((result.model as unknown as { headers?: Record<string, string> }).headers).toEqual({
+      "X-Custom-Auth": "token-123",
+    });
+  });
+
   it("prefers matching configured model metadata for fallback token limits", () => {
     const cfg = {
       models: {
@@ -463,7 +485,9 @@ describe("resolveModel", () => {
 
     const result = resolveModel("anthropic", "claude-sonnet-4-5", "/tmp/agent", cfg);
     expect(result.error).toBeUndefined();
-    expect((result.model as Record<string, unknown>).headers).toEqual({ "X-Custom-Auth": "token-123" });
+    expect((result.model as unknown as { headers?: Record<string, string> }).headers).toEqual({
+      "X-Custom-Auth": "token-123",
+    });
   });
 
   it("does not override when no provider config exists", () => {
