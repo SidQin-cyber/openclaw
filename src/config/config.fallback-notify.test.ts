@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { OpenClawSchema } from "./zod-schema.js";
 import { loadConfig } from "./config.js";
 import { withTempHome, writeOpenClawConfig } from "./test-helpers.js";
+import { OpenClawSchema } from "./zod-schema.js";
 
 describe("fallbackNotify config option", () => {
   it("accepts fallbackNotify: true", () => {
