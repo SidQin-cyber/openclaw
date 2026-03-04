@@ -237,6 +237,15 @@ describe("buildAgentSystemPrompt", () => {
     expect(prompt).toContain("sessions_send");
   });
 
+  it("instructs model to use current tool list over conversation history (#33527)", () => {
+    const prompt = buildAgentSystemPrompt({
+      workspaceDir: "/tmp/openclaw",
+      toolNames: ["exec", "read", "write", "sessions_list"],
+    });
+
+    expect(prompt).toContain("do not rely on tool lists mentioned in earlier messages");
+  });
+
   it("documents ACP sessions_spawn agent targeting requirements", () => {
     const prompt = buildAgentSystemPrompt({
       workspaceDir: "/tmp/openclaw",

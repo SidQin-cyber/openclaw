@@ -424,6 +424,7 @@ export function buildAgentSystemPrompt(params: {
     "## Tooling",
     "Tool availability (filtered by policy):",
     "Tool names are case-sensitive. Call tools exactly as listed.",
+    "The tool set may change between runs. Always reference the list below for current availability; do not rely on tool lists mentioned in earlier messages in this conversation.",
     toolLines.length > 0
       ? toolLines.join("\n")
       : [
