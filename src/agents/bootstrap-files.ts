@@ -1,4 +1,10 @@
 import type { OpenClawConfig } from "../config/config.js";
+import {
+  createInternalHookEvent,
+  triggerInternalHook,
+  type MemoryRetrievedHookContext,
+  type MemoryRetrievalResult,
+} from "../hooks/internal-hooks.js";
 import { getOrLoadBootstrapFiles } from "./bootstrap-cache.js";
 import { applyBootstrapHookOverrides } from "./bootstrap-hooks.js";
 import type { EmbeddedContextFile } from "./pi-embedded-helpers.js";
@@ -109,10 +115,32 @@ export async function resolveBootstrapContextForRun(params: {
   contextFiles: EmbeddedContextFile[];
 }> {
   const bootstrapFiles = await resolveBootstrapFilesForRun(params);
+  const maxChars = resolveBootstrapMaxChars(params.config);
+  const totalMaxChars = resolveBootstrapTotalMaxChars(params.config);
   const contextFiles = buildBootstrapContextFiles(bootstrapFiles, {
-    maxChars: resolveBootstrapMaxChars(params.config),
-    totalMaxChars: resolveBootstrapTotalMaxChars(params.config),
+    maxChars,
+    totalMaxChars,
     warn: params.warn,
   });
+
+  const sessionKey = params.sessionKey ?? params.sessionId ?? "unknown";
+  const results: MemoryRetrievalResult[] = bootstrapFiles
+    .filter((file) => !file.missing)
+    .map((file) => ({
+      path: file.path,
+      source: "bootstrap",
+    }));
+  const memoryRetrieved = contextFiles.reduce((sum, file) => sum + file.content.length, 0);
+  const hookContext: MemoryRetrievedHookContext = {
+    results,
+    tokenBudget: {
+      bootstrapFiles: totalMaxChars,
+      memoryRetrieved,
+    },
+    workspaceDir: params.workspaceDir,
+  };
+  const event = createInternalHookEvent("memory", "retrieved", sessionKey, hookContext);
+  await triggerInternalHook(event);
+
   return { bootstrapFiles, contextFiles };
 }

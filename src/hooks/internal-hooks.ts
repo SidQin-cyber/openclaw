@@ -183,6 +183,41 @@ export type MessagePreprocessedHookEvent = InternalHookEvent & {
   context: MessagePreprocessedHookContext;
 };
 
+// ============================================================================
+// Memory Hook Events
+// ============================================================================
+
+export type MemoryRetrievalResult = {
+  /** Relative or absolute path to the retrieved file */
+  path: string;
+  /** Start line of the relevant chunk (1-indexed), if applicable */
+  startLine?: number;
+  /** End line of the relevant chunk (1-indexed), if applicable */
+  endLine?: number;
+  /** Source that produced this result (e.g., "bootstrap", "memory-search") */
+  source: string;
+};
+
+export type MemoryRetrievedHookContext = {
+  /** Items selected for injection into agent context */
+  results: MemoryRetrievalResult[];
+  /** Token budget breakdown for memory retrieval */
+  tokenBudget: {
+    /** Characters allocated to bootstrap files */
+    bootstrapFiles: number;
+    /** Characters used by memory-retrieved content */
+    memoryRetrieved: number;
+  };
+  /** Workspace directory that scoped this retrieval */
+  workspaceDir: string;
+};
+
+export type MemoryRetrievedHookEvent = InternalHookEvent & {
+  type: "memory";
+  action: "retrieved";
+  context: MemoryRetrievedHookContext;
+};
+
 export interface InternalHookEvent {
   /** The type of event (command, session, agent, gateway, etc.) */
   type: InternalHookEventType;
@@ -445,4 +480,17 @@ export function isMessagePreprocessedEvent(
     return false;
   }
   return hasStringContextField(context, "channelId");
+}
+
+export function isMemoryRetrievedEvent(
+  event: InternalHookEvent,
+): event is MemoryRetrievedHookEvent {
+  if (!isHookEventTypeAndAction(event, "memory", "retrieved")) {
+    return false;
+  }
+  const context = getHookContext<MemoryRetrievedHookContext>(event);
+  if (!context) {
+    return false;
+  }
+  return Array.isArray(context.results) && hasStringContextField(context, "workspaceDir");
 }

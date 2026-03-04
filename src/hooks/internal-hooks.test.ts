@@ -6,12 +6,15 @@ import {
   isAgentBootstrapEvent,
   isGatewayStartupEvent,
   isMessageReceivedEvent,
+  isMemoryRetrievedEvent,
+  isMessageReceivedEvent,
   isMessageSentEvent,
   registerInternalHook,
   triggerInternalHook,
   unregisterInternalHook,
   type AgentBootstrapHookContext,
   type GatewayStartupHookContext,
+  type MemoryRetrievedHookContext,
   type MessageReceivedHookContext,
   type MessageSentHookContext,
 } from "./internal-hooks.js";
@@ -472,6 +475,88 @@ describe("hooks", () => {
 
       const keys = getRegisteredEventKeys();
       expect(keys).toEqual([]);
+    });
+  });
+
+  describe("isMemoryRetrievedEvent", () => {
+    it("returns true for memory:retrieved events with expected context", () => {
+      const event = createInternalHookEvent("memory", "retrieved", "test-session", {
+        results: [{ path: "/tmp/SOUL.md", source: "bootstrap" }],
+        tokenBudget: { bootstrapFiles: 50000, memoryRetrieved: 1200 },
+        workspaceDir: "/tmp",
+      } satisfies MemoryRetrievedHookContext);
+      expect(isMemoryRetrievedEvent(event)).toBe(true);
+    });
+
+    it("returns true when results array is empty", () => {
+      const event = createInternalHookEvent("memory", "retrieved", "test-session", {
+        results: [],
+        tokenBudget: { bootstrapFiles: 50000, memoryRetrieved: 0 },
+        workspaceDir: "/tmp",
+      } satisfies MemoryRetrievedHookContext);
+      expect(isMemoryRetrievedEvent(event)).toBe(true);
+    });
+
+    it("returns false for non-memory events", () => {
+      const event = createInternalHookEvent("command", "new", "test-session");
+      expect(isMemoryRetrievedEvent(event)).toBe(false);
+    });
+
+    it("returns false for memory events with a different action", () => {
+      const event = createInternalHookEvent("memory", "indexed", "test-session", {
+        workspaceDir: "/tmp",
+      });
+      expect(isMemoryRetrievedEvent(event)).toBe(false);
+    });
+
+    it("returns false when results is not an array", () => {
+      const event = createInternalHookEvent("memory", "retrieved", "test-session", {
+        results: "not-an-array",
+        tokenBudget: { bootstrapFiles: 50000, memoryRetrieved: 0 },
+        workspaceDir: "/tmp",
+      });
+      expect(isMemoryRetrievedEvent(event)).toBe(false);
+    });
+
+    it("returns false when workspaceDir is missing", () => {
+      const event = createInternalHookEvent("memory", "retrieved", "test-session", {
+        results: [],
+        tokenBudget: { bootstrapFiles: 50000, memoryRetrieved: 0 },
+      });
+      expect(isMemoryRetrievedEvent(event)).toBe(false);
+    });
+  });
+
+  describe("memory hooks", () => {
+    it("should trigger memory:retrieved handlers", async () => {
+      const handler = vi.fn();
+      registerInternalHook("memory:retrieved", handler);
+
+      const context: MemoryRetrievedHookContext = {
+        results: [{ path: "/workspace/SOUL.md", source: "bootstrap" }],
+        tokenBudget: { bootstrapFiles: 50000, memoryRetrieved: 1200 },
+        workspaceDir: "/workspace",
+      };
+      const event = createInternalHookEvent("memory", "retrieved", "test-session", context);
+      await triggerInternalHook(event);
+
+      expect(handler).toHaveBeenCalledWith(event);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it("should trigger general memory handlers", async () => {
+      const handler = vi.fn();
+      registerInternalHook("memory", handler);
+
+      const context: MemoryRetrievedHookContext = {
+        results: [],
+        tokenBudget: { bootstrapFiles: 50000, memoryRetrieved: 0 },
+        workspaceDir: "/workspace",
+      };
+      const event = createInternalHookEvent("memory", "retrieved", "test-session", context);
+      await triggerInternalHook(event);
+
+      expect(handler).toHaveBeenCalledWith(event);
     });
   });
 });

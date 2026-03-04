@@ -1,10 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearInternalHooks,
+  isMemoryRetrievedEvent,
   registerInternalHook,
   type AgentBootstrapHookContext,
+  type InternalHookEvent,
+  type MemoryRetrievedHookContext,
 } from "../hooks/internal-hooks.js";
 import { makeTempWorkspace } from "../test-helpers/workspace.js";
 import { resolveBootstrapContextForRun, resolveBootstrapFilesForRun } from "./bootstrap-files.js";
@@ -125,5 +128,46 @@ describe("resolveBootstrapContextForRun", () => {
     });
 
     expect(files).toEqual([]);
+  });
+
+  it("emits memory:retrieved hook event with bootstrap file results", async () => {
+    const workspaceDir = await makeTempWorkspace("openclaw-bootstrap-");
+    await fs.writeFile(path.join(workspaceDir, "SOUL.md"), "persona content", "utf8");
+
+    const captured: InternalHookEvent[] = [];
+    registerInternalHook("memory:retrieved", (event) => {
+      captured.push(event);
+    });
+
+    await resolveBootstrapContextForRun({ workspaceDir, sessionKey: "test-session" });
+
+    expect(captured).toHaveLength(1);
+    const event = captured[0]!;
+    expect(isMemoryRetrievedEvent(event)).toBe(true);
+
+    const context = event.context as MemoryRetrievedHookContext;
+    expect(context.workspaceDir).toBe(workspaceDir);
+    expect(context.tokenBudget.bootstrapFiles).toBeGreaterThan(0);
+    expect(context.tokenBudget.memoryRetrieved).toBeGreaterThanOrEqual(0);
+
+    const soulResult = context.results.find((r) => r.path.endsWith("SOUL.md"));
+    expect(soulResult).toBeDefined();
+    expect(soulResult!.source).toBe("bootstrap");
+  });
+
+  it("emits memory:retrieved with empty results when no bootstrap files exist", async () => {
+    const workspaceDir = await makeTempWorkspace("openclaw-bootstrap-empty-");
+
+    const captured: InternalHookEvent[] = [];
+    registerInternalHook("memory:retrieved", (event) => {
+      captured.push(event);
+    });
+
+    await resolveBootstrapContextForRun({ workspaceDir });
+
+    expect(captured).toHaveLength(1);
+    const context = captured[0]!.context as MemoryRetrievedHookContext;
+    expect(context.results).toEqual([]);
+    expect(typeof context.tokenBudget.memoryRetrieved).toBe("number");
   });
 });
