@@ -386,7 +386,7 @@ export async function sendWebhookMessageDiscord(
   };
   try {
     const account = resolveDiscordAccount({
-      cfg: opts.cfg ?? loadConfig(),
+      cfg: loadConfig(),
       accountId: opts.accountId,
     });
     recordChannelActivity({
