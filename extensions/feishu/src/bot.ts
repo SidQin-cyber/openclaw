@@ -305,6 +305,15 @@ function resolveFeishuGroupSession(params: {
   };
 }
 
+/**
+ * Strip the `:reaction:<emoji>:<uuid>` suffix that resolveReactionSyntheticEvent
+ * appends to message_id for dedup. The raw Feishu API doesn't accept suffixed IDs.
+ */
+export function stripReactionSuffix(messageId: string): string {
+  const idx = messageId.indexOf(":reaction:");
+  return idx >= 0 ? messageId.slice(0, idx) : messageId;
+}
+
 function parseMessageContent(content: string, messageType: string): string {
   if (messageType === "post") {
     // Extract text content from rich text post
@@ -1337,7 +1346,7 @@ export async function handleFeishuMessage(params: {
     const messageCreateTimeMs = event.message.create_time
       ? parseInt(event.message.create_time, 10)
       : undefined;
-    const replyTargetMessageId = ctx.rootId ?? ctx.messageId;
+    const replyTargetMessageId = stripReactionSuffix(ctx.rootId ?? ctx.messageId);
     const threadReply = isGroup ? (groupSession?.threadReply ?? false) : false;
 
     if (broadcastAgents) {

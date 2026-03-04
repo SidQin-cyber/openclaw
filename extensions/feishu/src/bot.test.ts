@@ -7,6 +7,7 @@ import {
   buildFeishuAgentBody,
   handleFeishuMessage,
   resolveBroadcastAgents,
+  stripReactionSuffix,
   toMessageResourceType,
 } from "./bot.js";
 import { setFeishuRuntime } from "./runtime.js";
@@ -1913,6 +1914,45 @@ describe("broadcast dispatch", () => {
     expect(mockDispatchReplyFromConfig).not.toHaveBeenCalled();
   });
 
+  it("strips reaction suffix from replyToMessageId in dispatch (#34528)", async () => {
+    const cfg: ClawdbotConfig = {
+      channels: {
+        feishu: {
+          groups: {
+            "oc-group": {
+              requireMention: false,
+            },
+          },
+        },
+      },
+    } as ClawdbotConfig;
+
+    const event: FeishuMessageEvent = {
+      sender: { sender_id: { open_id: "ou-reactor" } },
+      message: {
+        message_id: "om_msg1:reaction:THUMBSUP:some-uuid",
+        chat_id: "oc-group",
+        chat_type: "group",
+        message_type: "text",
+        content: JSON.stringify({
+          text: "[reacted with THUMBSUP to message om_msg1]",
+        }),
+      },
+    };
+
+    await handleFeishuMessage({
+      cfg,
+      event,
+      runtime: createRuntimeEnv(),
+    });
+
+    expect(mockCreateFeishuReplyDispatcher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        replyToMessageId: "om_msg1",
+      }),
+    );
+  });
+
   it("skips unknown agents not in agents.list", async () => {
     const cfg: ClawdbotConfig = {
       broadcast: { "oc-broadcast-group": ["susan", "unknown-agent"] },
@@ -1950,5 +1990,28 @@ describe("broadcast dispatch", () => {
     const sessionKey = (mockFinalizeInboundContext.mock.calls[0]?.[0] as { SessionKey: string })
       .SessionKey;
     expect(sessionKey).toBe("agent:susan:feishu:group:oc-broadcast-group");
+  });
+});
+
+describe("stripReactionSuffix", () => {
+  it("strips :reaction: suffix from reaction message_id", () => {
+    expect(stripReactionSuffix("om_msg1:reaction:THUMBSUP:some-uuid")).toBe("om_msg1");
+  });
+
+  it("handles different emoji types", () => {
+    expect(stripReactionSuffix("om_abc:reaction:HEART:uuid-123")).toBe("om_abc");
+    expect(stripReactionSuffix("om_xyz:reaction:SMILE:uuid-456")).toBe("om_xyz");
+  });
+
+  it("returns plain message_id unchanged", () => {
+    expect(stripReactionSuffix("om_msg1")).toBe("om_msg1");
+  });
+
+  it("returns empty string unchanged", () => {
+    expect(stripReactionSuffix("")).toBe("");
+  });
+
+  it("preserves message_id with colons but no :reaction: segment", () => {
+    expect(stripReactionSuffix("om_msg1:topic:root")).toBe("om_msg1:topic:root");
   });
 });
