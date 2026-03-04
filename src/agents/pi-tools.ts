@@ -57,6 +57,69 @@ import {
 } from "./tool-policy.js";
 import { resolveWorkspaceRoot } from "./workspace-dir.js";
 
+const TOOL_CONFIG_KEYS: Record<string, string> = {
+  exec: "tools.exec",
+  read: "tools.fs",
+  write: "tools.fs",
+  edit: "tools.fs",
+  apply_patch: "tools.fs",
+};
+
+function warnConfiguredToolsHiddenByProfile(params: {
+  profile?: string;
+  before: AnyAgentTool[];
+  after: AnyAgentTool[];
+  cfg?: OpenClawConfig;
+  agentId?: string;
+}) {
+  const { profile, before, after, cfg } = params;
+  if (!profile || profile === "full") {
+    return;
+  }
+
+  const afterNames = new Set(after.map((t) => t.name));
+  const hidden = before.filter((t) => !afterNames.has(t.name));
+  if (hidden.length === 0) {
+    return;
+  }
+
+  const globalTools = cfg?.tools;
+  const agentTools =
+    cfg && params.agentId ? resolveAgentConfig(cfg, params.agentId)?.tools : undefined;
+
+  const configured: string[] = [];
+  for (const tool of hidden) {
+    const cfgKey = TOOL_CONFIG_KEYS[tool.name];
+    if (!cfgKey) {
+      continue;
+    }
+    const hasGlobal =
+      cfgKey === "tools.exec"
+        ? globalTools?.exec != null
+        : cfgKey === "tools.fs"
+          ? globalTools?.fs != null
+          : false;
+    const hasAgent =
+      cfgKey === "tools.exec"
+        ? agentTools?.exec != null
+        : cfgKey === "tools.fs"
+          ? agentTools?.fs != null
+          : false;
+    if (hasGlobal || hasAgent) {
+      configured.push(tool.name);
+    }
+  }
+
+  if (configured.length === 0) {
+    return;
+  }
+
+  logWarn(
+    `tools.profile "${profile}" hides configured tool(s): ${configured.join(", ")}. ` +
+      `Change tools.profile to "coding" or "full", or add these tools to tools.alsoAllow to make them available.`,
+  );
+}
+
 function isOpenAIProvider(provider?: string) {
   const normalized = provider?.trim().toLowerCase();
   return normalized === "openai" || normalized === "openai-codex";
@@ -525,6 +588,15 @@ export function createOpenClawCodingTools(options?: {
       { policy: subagentPolicy, label: "subagent tools.allow" },
     ],
   });
+
+  warnConfiguredToolsHiddenByProfile({
+    profile,
+    before: toolsByAuthorization,
+    after: subagentFiltered,
+    cfg: options?.config,
+    agentId,
+  });
+
   // Always normalize tool JSON Schemas before handing them to pi-agent/pi-ai.
   // Without this, some providers (notably OpenAI) will reject root-level union schemas.
   // Provider-specific cleaning: Gemini needs constraint keywords stripped, but Anthropic expects them.
@@ -552,3 +624,7 @@ export function createOpenClawCodingTools(options?: {
   // on the wire and maps them back for tool dispatch.
   return withAbort;
 }
+
+export const __test__ = {
+  warnConfiguredToolsHiddenByProfile,
+};
