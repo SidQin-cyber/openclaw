@@ -208,21 +208,16 @@ export async function uploadImageFeishu(params: {
 }
 
 /**
- * Encode a filename for safe use in Feishu multipart/form-data uploads.
- * Non-ASCII characters (Chinese, em-dash, full-width brackets, etc.) cause
- * the upload to silently fail when passed raw through the SDK's form-data
- * serialization.  RFC 5987 percent-encoding keeps headers 7-bit clean while
- * Feishu's server decodes and preserves the original display name.
+ * Sanitize a filename for safe use in Feishu multipart/form-data uploads.
+ * Strip control characters (null, newline, CR, etc.) and characters that
+ * break Content-Disposition headers (double-quote, backslash).  Non-ASCII
+ * characters (Chinese, em-dash, full-width brackets) are preserved as-is
+ * because Feishu displays `file_name` verbatim without any decoding —
+ * percent-encoding them causes garbled filenames in the Feishu UI.
  */
 export function sanitizeFileNameForUpload(fileName: string): string {
-  const ASCII_ONLY = /^[\x20-\x7E]+$/;
-  if (ASCII_ONLY.test(fileName)) {
-    return fileName;
-  }
-  return encodeURIComponent(fileName)
-    .replace(/'/g, "%27")
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29");
+  // eslint-disable-next-line no-control-regex -- intentional: strip C0 control chars + DEL
+  return fileName.replace(/[\x00-\x1F\x7F"\\]/g, "_");
 }
 
 /**
