@@ -130,4 +130,24 @@ describe("config pruning defaults", () => {
       expect(cfg.agents?.defaults?.contextPruning?.mode).toBe("off");
     });
   });
+
+  it("accepts rolling mode as a valid contextPruning mode", async () => {
+    await withTempHome(async (home) => {
+      await writeConfigForTest(home, {
+        agents: {
+          defaults: {
+            contextPruning: {
+              mode: "rolling",
+              keepLastAssistants: 8,
+            },
+          },
+        },
+      });
+
+      const cfg = loadConfig();
+
+      expect(cfg.agents?.defaults?.contextPruning?.mode).toBe("rolling");
+      expect(cfg.agents?.defaults?.contextPruning?.keepLastAssistants).toBe(8);
+    });
+  });
 });

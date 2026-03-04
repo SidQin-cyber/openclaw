@@ -424,3 +424,25 @@ describe("context-pruning", () => {
     expect(text).toContain("[Tool result trimmed:");
   });
 });
+
+describe("computeEffectiveSettings - rolling mode", () => {
+  it("returns settings for rolling mode", () => {
+    const result = computeEffectiveSettings({ mode: "rolling", keepLastAssistants: 8 });
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe("rolling");
+    expect(result!.keepLastAssistants).toBe(8);
+  });
+
+  it("uses defaults when rolling mode has no explicit overrides", () => {
+    const result = computeEffectiveSettings({ mode: "rolling" });
+    expect(result).not.toBeNull();
+    expect(result!.mode).toBe("rolling");
+    expect(result!.keepLastAssistants).toBe(DEFAULT_CONTEXT_PRUNING_SETTINGS.keepLastAssistants);
+    expect(result!.softTrimRatio).toBe(DEFAULT_CONTEXT_PRUNING_SETTINGS.softTrimRatio);
+  });
+
+  it("returns null for off mode", () => {
+    const result = computeEffectiveSettings({ mode: "off" });
+    expect(result).toBeNull();
+  });
+});

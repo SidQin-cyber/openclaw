@@ -19,6 +19,7 @@ export default function contextPruningExtension(api: ExtensionAPI): void {
         return undefined;
       }
     }
+    // "rolling" mode runs on every context event (no TTL gate).
 
     const next = pruneContextMessages({
       messages: event.messages,
