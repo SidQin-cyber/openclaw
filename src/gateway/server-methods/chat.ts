@@ -719,7 +719,7 @@ export const chatHandlers: GatewayRequestHandlers = {
       runIds: res.aborted ? [runId] : [],
     });
   },
-  "chat.send": async ({ params, respond, context, client }) => {
+  "chat.send": async ({ params, respond, context, client, isWebchatConnect }) => {
     if (!validateChatSendParams(params)) {
       respond(
         false,
@@ -889,7 +889,9 @@ export const chatHandlers: GatewayRequestHandlers = {
         !isChannelAgnosticSessionScope &&
         (isChannelScopedSession || hasLegacyChannelPeerShape),
       );
+      const isFromWebchat = isWebchatConnect(client?.connect);
       const hasDeliverableRoute =
+        !isFromWebchat &&
         canInheritDeliverableRoute &&
         routeChannelCandidate &&
         routeChannelCandidate !== INTERNAL_MESSAGE_CHANNEL &&

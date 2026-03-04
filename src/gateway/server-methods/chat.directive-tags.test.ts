@@ -150,6 +150,7 @@ async function runNonStreamingChatSend(params: {
   sessionKey?: string;
   client?: unknown;
   expectBroadcast?: boolean;
+  isWebchatConnect?: boolean;
 }) {
   await chatHandlers["chat.send"]({
     params: {
@@ -162,7 +163,7 @@ async function runNonStreamingChatSend(params: {
     >[0]["respond"],
     req: {} as never,
     client: (params.client ?? null) as never,
-    isWebchatConnect: () => false,
+    isWebchatConnect: () => params.isWebchatConnect ?? false,
     context: params.context as GatewayRequestContext,
   });
 
@@ -574,6 +575,40 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
       // "agent:main:work" only yields one rest token and does not hit that path.
       sessionKey: "agent:main:work:ticket-123",
       expectBroadcast: false,
+    });
+
+    expect(mockState.lastDispatchCtx).toEqual(
+      expect.objectContaining({
+        OriginatingChannel: "webchat",
+        OriginatingTo: undefined,
+        AccountId: undefined,
+      }),
+    );
+  });
+
+  it("chat.send from webchat does not route replies to external channel even for channel-scoped sessions", async () => {
+    createTranscriptFixture("openclaw-chat-send-webchat-no-external-route-");
+    mockState.finalText = "ok";
+    mockState.sessionEntry = {
+      deliveryContext: {
+        channel: "telegram",
+        to: "telegram:6812765697",
+        accountId: "default",
+      },
+      lastChannel: "telegram",
+      lastTo: "telegram:6812765697",
+      lastAccountId: "default",
+    };
+    const respond = vi.fn();
+    const context = createChatContext();
+
+    await runNonStreamingChatSend({
+      context,
+      respond,
+      idempotencyKey: "idem-webchat-no-external-route",
+      sessionKey: "agent:main:telegram:direct:6812765697",
+      expectBroadcast: false,
+      isWebchatConnect: true,
     });
 
     expect(mockState.lastDispatchCtx).toEqual(
