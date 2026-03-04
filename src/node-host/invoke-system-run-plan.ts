@@ -144,6 +144,7 @@ export function hardenApprovedExecutionPaths(params: {
   | {
       ok: true;
       argv: string[];
+      argvChanged: boolean;
       cwd: string | undefined;
       approvedCwdSnapshot: ApprovedCwdSnapshot | undefined;
     }
@@ -152,6 +153,7 @@ export function hardenApprovedExecutionPaths(params: {
     return {
       ok: true,
       argv: params.argv,
+      argvChanged: false,
       cwd: params.cwd,
       approvedCwdSnapshot: undefined,
     };
@@ -172,6 +174,7 @@ export function hardenApprovedExecutionPaths(params: {
     return {
       ok: true,
       argv: params.argv,
+      argvChanged: false,
       cwd: hardenedCwd,
       approvedCwdSnapshot,
     };
@@ -190,6 +193,7 @@ export function hardenApprovedExecutionPaths(params: {
     return {
       ok: true,
       argv: params.argv,
+      argvChanged: false,
       cwd: hardenedCwd,
       approvedCwdSnapshot,
     };
@@ -203,11 +207,22 @@ export function hardenApprovedExecutionPaths(params: {
     };
   }
 
+  if (pinnedExecutable === params.argv[0]) {
+    return {
+      ok: true,
+      argv: params.argv,
+      argvChanged: false,
+      cwd: hardenedCwd,
+      approvedCwdSnapshot,
+    };
+  }
+
   const argv = [...params.argv];
   argv[0] = pinnedExecutable;
   return {
     ok: true,
     argv,
+    argvChanged: true,
     cwd: hardenedCwd,
     approvedCwdSnapshot,
   };
@@ -239,10 +254,9 @@ export function buildSystemRunApprovalPlan(params: {
   if (!hardening.ok) {
     return { ok: false, message: hardening.message };
   }
-  const rawCommand =
-    hardening.argv === command.argv
-      ? command.cmdText.trim() || null
-      : formatExecCommand(hardening.argv) || null;
+  const rawCommand = hardening.argvChanged
+    ? formatExecCommand(hardening.argv) || null
+    : command.cmdText.trim() || null;
   return {
     ok: true,
     plan: {

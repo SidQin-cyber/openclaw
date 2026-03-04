@@ -19,6 +19,7 @@ type HardeningCase = {
   shellCommand?: string | null;
   withPathToken?: boolean;
   expectedArgv: (ctx: { pathToken: PathTokenSetup | null }) => string[];
+  expectedArgvChanged?: boolean;
   expectedCmdText?: string;
   checkRawCommandMatchesArgv?: boolean;
 };
@@ -38,6 +39,7 @@ describe("hardenApprovedExecutionPaths", () => {
       argv: ["env", "tr", "a", "b"],
       shellCommand: null,
       expectedArgv: () => ["env", "tr", "a", "b"],
+      expectedArgvChanged: false,
     },
     {
       name: "pins direct PATH-token executable during approval hardening",
@@ -46,6 +48,7 @@ describe("hardenApprovedExecutionPaths", () => {
       shellCommand: null,
       withPathToken: true,
       expectedArgv: ({ pathToken }) => [pathToken!.expected, "SAFE"],
+      expectedArgvChanged: true,
     },
     {
       name: "preserves env-wrapper PATH-token argv during approval hardening",
@@ -54,6 +57,7 @@ describe("hardenApprovedExecutionPaths", () => {
       shellCommand: null,
       withPathToken: true,
       expectedArgv: () => ["env", "poccmd", "SAFE"],
+      expectedArgvChanged: false,
     },
     {
       name: "rawCommand matches hardened argv after executable path pinning",
@@ -109,6 +113,9 @@ describe("hardenApprovedExecutionPaths", () => {
           throw new Error("unreachable");
         }
         expect(hardened.argv).toEqual(testCase.expectedArgv({ pathToken }));
+        if (typeof testCase.expectedArgvChanged === "boolean") {
+          expect(hardened.argvChanged).toBe(testCase.expectedArgvChanged);
+        }
       } finally {
         if (testCase.withPathToken) {
           if (oldPath === undefined) {
