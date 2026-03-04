@@ -281,6 +281,7 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
   let threadStarterBody: string | undefined;
   let threadLabel: string | undefined;
   let parentSessionKey: string | undefined;
+  let threadSessionPreviousTimestamp: number | undefined;
   if (threadChannel) {
     const includeThreadStarter = channelConfig?.includeThreadStarter !== false;
     if (includeThreadStarter) {
@@ -292,7 +293,6 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
         resolveTimestampMs,
       });
       if (starter?.text) {
-        // Keep thread starter as raw text; metadata is provided out-of-band in the system prompt.
         threadStarterBody = starter.text;
       }
     }
@@ -315,6 +315,12 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
     parentSessionKey,
     useSuffix: false,
   });
+  if (threadChannel && threadStarterBody) {
+    threadSessionPreviousTimestamp = readSessionUpdatedAt({
+      storePath,
+      sessionKey: threadKeys.sessionKey,
+    });
+  }
   const replyPlan = await resolveDiscordAutoThreadReplyPlan({
     client,
     message,
@@ -385,7 +391,7 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
     ReplyToSender: replyContext?.sender,
     ParentSessionKey: autoThreadContext?.ParentSessionKey ?? threadKeys.parentSessionKey,
     MessageThreadId: threadChannel?.id ?? autoThreadContext?.createdThreadId ?? undefined,
-    ThreadStarterBody: threadStarterBody,
+    ThreadStarterBody: !threadSessionPreviousTimestamp ? threadStarterBody : undefined,
     ThreadLabel: threadLabel,
     Timestamp: resolveTimestampMs(message.timestamp),
     ...mediaPayload,

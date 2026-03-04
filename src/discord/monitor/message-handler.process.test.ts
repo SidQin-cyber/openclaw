@@ -453,6 +453,24 @@ describe("processDiscordMessage session routing", () => {
       accountId: "default",
     });
   });
+
+  it("does not re-inject ThreadStarterBody for existing thread sessions", async () => {
+    readSessionUpdatedAt.mockReturnValue(Date.now());
+
+    const ctx = await createBaseContext({
+      messageChannelId: "t-existing",
+      threadChannel: { id: "t-existing", name: "my-thread" },
+      threadParentId: "c1",
+      threadParentType: "GUILD_TEXT",
+      route: BASE_CHANNEL_ROUTE,
+    });
+
+    // oxlint-disable-next-line typescript/no-explicit-any
+    await processDiscordMessage(ctx as any);
+
+    const dispatchCtx = getLastDispatchCtx();
+    expect(dispatchCtx?.ThreadStarterBody).toBeUndefined();
+  });
 });
 
 describe("processDiscordMessage draft streaming", () => {
