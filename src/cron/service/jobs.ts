@@ -196,14 +196,22 @@ export function findJobOrThrow(state: CronServiceState, id: string) {
   return job;
 }
 
-export function computeJobNextRunAtMs(job: CronJob, nowMs: number): number | undefined {
+export function computeJobNextRunAtMs(
+  job: CronJob,
+  nowMs: number,
+  opts?: { skipLastRunAnchor?: boolean },
+): number | undefined {
   if (!job.enabled) {
     return undefined;
   }
   if (job.schedule.kind === "every") {
     const everyMs = Math.max(1, Math.floor(job.schedule.everyMs));
     const lastRunAtMs = job.state.lastRunAtMs;
-    if (typeof lastRunAtMs === "number" && Number.isFinite(lastRunAtMs)) {
+    if (
+      !opts?.skipLastRunAnchor &&
+      typeof lastRunAtMs === "number" &&
+      Number.isFinite(lastRunAtMs)
+    ) {
       const nextFromLastRun = Math.floor(lastRunAtMs) + everyMs;
       if (nextFromLastRun > nowMs) {
         return nextFromLastRun;
