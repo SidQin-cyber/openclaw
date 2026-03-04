@@ -181,7 +181,7 @@ describe("createLaneTextDeliverer", () => {
     );
   });
 
-  it("keeps existing preview when final text regresses", async () => {
+  it("always applies final text even when it regresses (#33854)", async () => {
     const harness = createHarness({ answerMessageId: 999 });
     harness.lanes.answer.lastPartialText = "Recovered final answer.";
 
@@ -193,9 +193,14 @@ describe("createLaneTextDeliverer", () => {
     });
 
     expect(result).toBe("preview-finalized");
-    expect(harness.editPreview).not.toHaveBeenCalled();
+    expect(harness.editPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: 999,
+        text: "Recovered final answer",
+        context: "final",
+      }),
+    );
     expect(harness.sendPayload).not.toHaveBeenCalled();
-    expect(harness.markDelivered).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to normal delivery when final text exceeds preview edit limit", async () => {
@@ -336,6 +341,27 @@ describe("createLaneTextDeliverer", () => {
       expect.objectContaining({ text: "Choose one" }),
     );
     expect(harness.markDelivered).not.toHaveBeenCalled();
+  });
+
+  it("does not skip regressive preview update for final context (#33854)", async () => {
+    const harness = createHarness({ answerMessageId: 888 });
+    harness.lanes.answer.lastPartialText = "Let me check that for you in detail";
+
+    const result = await harness.deliverLaneText({
+      laneName: "answer",
+      text: "Let me check",
+      payload: { text: "Let me check" },
+      infoKind: "final",
+    });
+
+    expect(result).toBe("preview-finalized");
+    expect(harness.editPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: 888,
+        text: "Let me check",
+        context: "final",
+      }),
+    );
   });
 
   it("deletes consumed boundary previews after fallback final send", async () => {

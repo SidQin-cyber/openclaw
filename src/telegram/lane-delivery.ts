@@ -258,16 +258,22 @@ export function createLaneTextDeliverer(params: CreateLaneTextDelivererParams) {
       treatEditFailureAsDelivered: boolean,
       hadPreviewMessage: boolean,
     ): boolean | Promise<boolean> => {
-      const currentPreviewText = previewTextSnapshot ?? getLanePreviewText(lane);
-      const shouldSkipRegressive = shouldSkipRegressivePreviewUpdate({
-        currentPreviewText,
-        text,
-        skipRegressive,
-        hadPreviewMessage,
-      });
-      if (shouldSkipRegressive) {
-        params.markDelivered();
-        return true;
+      // Final delivery must always apply the authoritative content — never skip
+      // the edit for a "regressive" update.  The skip-regressive guard is only
+      // appropriate for mid-stream preview edits where a shorter partial would
+      // flicker over a longer one (#33854).
+      if (context !== "final") {
+        const currentPreviewText = previewTextSnapshot ?? getLanePreviewText(lane);
+        const shouldSkipRegressive = shouldSkipRegressivePreviewUpdate({
+          currentPreviewText,
+          text,
+          skipRegressive,
+          hadPreviewMessage,
+        });
+        if (shouldSkipRegressive) {
+          params.markDelivered();
+          return true;
+        }
       }
       return editPreview(previewMessageId, treatEditFailureAsDelivered);
     };
