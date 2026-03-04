@@ -221,6 +221,29 @@ describe("loadWorkspaceBootstrapFiles", () => {
       await fs.rm(rootDir, { recursive: true, force: true });
     }
   });
+  it("loads symlinked bootstrap files pointing outside workspace", async () => {
+    if (process.platform === "win32") {
+      return;
+    }
+    const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-workspace-symlink-"));
+    try {
+      const workspaceDir = path.join(rootDir, "workspace");
+      const outsideDir = path.join(rootDir, "outside");
+      await fs.mkdir(workspaceDir, { recursive: true });
+      await fs.mkdir(outsideDir, { recursive: true });
+      const outsideFile = path.join(outsideDir, DEFAULT_AGENTS_FILENAME);
+      const linkPath = path.join(workspaceDir, DEFAULT_AGENTS_FILENAME);
+      await fs.writeFile(outsideFile, "symlinked-content", "utf-8");
+      await fs.symlink(outsideFile, linkPath);
+
+      const files = await loadWorkspaceBootstrapFiles(workspaceDir);
+      const agents = files.find((file) => file.name === DEFAULT_AGENTS_FILENAME);
+      expect(agents?.missing).toBe(false);
+      expect(agents?.content).toBe("symlinked-content");
+    } finally {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("filterBootstrapFilesForSession", () => {

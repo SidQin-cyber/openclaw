@@ -64,6 +64,14 @@ async function readWorkspaceFileWithGuards(params: {
     maxBytes: MAX_WORKSPACE_BOOTSTRAP_FILE_BYTES,
   });
   if (!opened.ok) {
+    // Symlink-aware fallback: if the boundary checker rejected the path,
+    // check whether the file is a symlink lexically inside the workspace
+    // whose resolved target is a readable regular file within size limits.
+    // This allows users to symlink bootstrap files from sibling workspaces.
+    const fallback = await tryReadSymlinkedWorkspaceFile(params);
+    if (fallback) {
+      return fallback;
+    }
     workspaceFileCache.delete(params.filePath);
     return opened;
   }
@@ -84,6 +92,49 @@ async function readWorkspaceFileWithGuards(params: {
     return { ok: false, reason: "io", error };
   } finally {
     syncFs.closeSync(opened.fd);
+  }
+}
+
+/**
+ * Fallback for symlinked bootstrap files that fail the boundary check.
+ * Only activates when the path is lexically inside the workspace and is a
+ * symlink. Resolves the symlink target and reads it if the target is a
+ * regular file within the size limit.
+ */
+async function tryReadSymlinkedWorkspaceFile(params: {
+  filePath: string;
+  workspaceDir: string;
+}): Promise<WorkspaceGuardedReadResult | null> {
+  const absolutePath = path.resolve(params.filePath);
+  const workspaceDir = path.resolve(params.workspaceDir);
+
+  // Only consider paths lexically inside the workspace directory
+  const relative = path.relative(workspaceDir, absolutePath);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+
+  try {
+    const lstat = await fs.lstat(absolutePath);
+    if (!lstat.isSymbolicLink()) {
+      return null;
+    }
+
+    const realTarget = await fs.realpath(absolutePath);
+    const targetStat = await fs.stat(realTarget);
+    if (!targetStat.isFile()) {
+      return null;
+    }
+    if (targetStat.size > MAX_WORKSPACE_BOOTSTRAP_FILE_BYTES) {
+      return null;
+    }
+
+    const content = await fs.readFile(realTarget, "utf-8");
+    const identity = workspaceFileIdentity(targetStat, realTarget);
+    workspaceFileCache.set(params.filePath, { content, identity });
+    return { ok: true, content };
+  } catch {
+    return null;
   }
 }
 
