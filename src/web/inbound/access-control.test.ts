@@ -131,6 +131,31 @@ describe("WhatsApp dmPolicy precedence", () => {
     expect(readAllowFromStoreMock).not.toHaveBeenCalled();
   });
 
+  it("allows group messages when senderE164 is null (LID resolution failure) (#33880)", async () => {
+    setAccessControlTestConfig({
+      channels: {
+        whatsapp: {
+          groupPolicy: "allowlist",
+          groupAllowFrom: ["+15550001111"],
+        },
+      },
+    });
+
+    const result = await checkInboundAccessControl({
+      accountId: "default",
+      from: "+15550009999",
+      selfE164: "+15550009999",
+      senderE164: null,
+      group: true,
+      pushName: "GroupMember",
+      isFromMe: false,
+      sock: { sendMessage: sendMessageMock },
+      remoteJid: "120363001234567890@g.us",
+    });
+
+    expect(result.allowed).toBe(true);
+  });
+
   it("always allows same-phone DMs even when allowFrom is restrictive", async () => {
     setAccessControlTestConfig({
       channels: {

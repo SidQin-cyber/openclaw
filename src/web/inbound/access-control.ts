@@ -123,9 +123,16 @@ export async function checkInboundAccessControl(params: {
       if (!params.group && isSamePhone) {
         return true;
       }
-      return params.group
-        ? Boolean(normalizedGroupSender && normalizedEntrySet.has(normalizedGroupSender))
-        : normalizedEntrySet.has(normalizedDmSender);
+      if (params.group) {
+        // Fail-open when sender E164 cannot be resolved (LID format, new JID
+        // format).  Blocking here would silently prevent all group messages from
+        // spawning agent sessions (#33880).
+        if (!normalizedGroupSender) {
+          return true;
+        }
+        return normalizedEntrySet.has(normalizedGroupSender);
+      }
+      return normalizedEntrySet.has(normalizedDmSender);
     },
   });
   if (params.group && access.decision !== "allow") {
