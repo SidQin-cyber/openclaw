@@ -119,6 +119,8 @@ export type MessagesConfig = {
   statusReactions?: StatusReactionsConfig;
   /** When true, suppress ⚠️ tool-error warnings from being shown to the user. Default: false. */
   suppressToolErrors?: boolean;
+  /** When true, also suppress warnings for mutating tool failures (edit, write, etc.). Default: false. */
+  suppressMutatingToolErrors?: boolean;
   /** Text-to-speech settings for outbound replies. */
   tts?: TtsConfig;
 };
