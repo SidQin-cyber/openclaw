@@ -156,6 +156,7 @@ export type DiscordChannelEdit = {
   locked?: boolean;
   autoArchiveDuration?: number;
   availableTags?: DiscordForumTag[];
+  appliedTags?: string[];
 };
 
 export type DiscordChannelMove = {

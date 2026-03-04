@@ -390,6 +390,11 @@ function buildChannelManagementSchema() {
         description: "Clear the parent/category when supported by the provider.",
       }),
     ),
+    appliedTags: Type.Optional(
+      Type.Array(Type.String(), {
+        description: "Tag IDs to apply to a forum/media thread (Discord only, max 5).",
+      }),
+    ),
   };
 }
 
