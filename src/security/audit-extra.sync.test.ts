@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
-import { collectAttackSurfaceSummaryFindings } from "./audit-extra.sync.js";
+import { collectAttackSurfaceSummaryFindings, hasWebSearchKey } from "./audit-extra.sync.js";
 import { safeEqualSecret } from "./secret-equal.js";
 
 describe("collectAttackSurfaceSummaryFindings", () => {
@@ -31,6 +31,37 @@ describe("collectAttackSurfaceSummaryFindings", () => {
     const [finding] = collectAttackSurfaceSummaryFindings(cfg);
     expect(finding.detail).toContain("hooks.webhooks: disabled");
     expect(finding.detail).toContain("hooks.internal: disabled");
+  });
+});
+
+describe("hasWebSearchKey", () => {
+  const emptyEnv = {} as NodeJS.ProcessEnv;
+
+  it("detects Brave key from config", () => {
+    const cfg = { tools: { web: { search: { apiKey: "brave-key" } } } } as any;
+    expect(hasWebSearchKey(cfg, emptyEnv)).toBe(true);
+  });
+
+  it("detects Gemini key from config", () => {
+    const cfg = { tools: { web: { search: { gemini: { apiKey: "gem-key" } } } } } as any;
+    expect(hasWebSearchKey(cfg, emptyEnv)).toBe(true);
+  });
+
+  it("detects Grok key from env", () => {
+    expect(hasWebSearchKey({}, { XAI_API_KEY: "xai-key" } as any)).toBe(true);
+  });
+
+  it("detects Kimi key from env", () => {
+    expect(hasWebSearchKey({}, { KIMI_API_KEY: "kimi-key" } as any)).toBe(true);
+    expect(hasWebSearchKey({}, { MOONSHOT_API_KEY: "moon-key" } as any)).toBe(true);
+  });
+
+  it("detects Gemini key from env", () => {
+    expect(hasWebSearchKey({}, { GEMINI_API_KEY: "gemini-key" } as any)).toBe(true);
+  });
+
+  it("returns false when no keys configured", () => {
+    expect(hasWebSearchKey({}, emptyEnv)).toBe(false);
   });
 });
 
