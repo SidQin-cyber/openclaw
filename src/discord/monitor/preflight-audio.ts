@@ -12,7 +12,9 @@ function collectAudioAttachments(
   if (!Array.isArray(attachments)) {
     return [];
   }
-  return attachments.filter((att) => att.content_type?.startsWith("audio/"));
+  return attachments.filter(
+    (att) => att != null && typeof att === "object" && att.content_type?.startsWith("audio/"),
+  );
 }
 
 export async function resolveDiscordPreflightAudioMentionContext(params: {

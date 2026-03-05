@@ -380,7 +380,10 @@ export async function handleBashChatCommand(params: {
     const output =
       result.details?.status === "completed"
         ? result.details.aggregated
-        : result.content.map((chunk) => (chunk.type === "text" ? chunk.text : "")).join("\n");
+        : (Array.isArray(result.content) ? result.content : [])
+            .filter((chunk) => chunk != null && typeof chunk === "object")
+            .map((chunk) => (chunk.type === "text" ? chunk.text : ""))
+            .join("\n");
     return {
       text: [
         `⚙️ bash: ${commandText}`,

@@ -769,9 +769,14 @@ export async function registerSlackMonitorSlashCommands(params: {
         await ack({ options: [] });
         return;
       }
-      const query = typedBody.value?.trim().toLowerCase() ?? "";
+      const rawValue = typedBody.value;
+      const query = typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
       const options = entry.choices
-        .filter((choice) => !query || choice.label.toLowerCase().includes(query))
+        .filter(
+          (choice) =>
+            !query ||
+            (typeof choice.label === "string" && choice.label.toLowerCase().includes(query)),
+        )
         .slice(0, SLACK_COMMAND_ARG_SELECT_OPTIONS_MAX)
         .map((choice) => ({
           text: { type: "plain_text", text: choice.label.slice(0, 75) },

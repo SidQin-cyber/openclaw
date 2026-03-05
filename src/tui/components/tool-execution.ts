@@ -35,11 +35,14 @@ function formatArgs(toolName: string, args: unknown): string {
 }
 
 function extractText(result?: ToolResult): string {
-  if (!result?.content) {
+  if (!result?.content || !Array.isArray(result.content)) {
     return "";
   }
   const lines: string[] = [];
   for (const entry of result.content) {
+    if (entry == null || typeof entry !== "object") {
+      continue;
+    }
     if (entry.type === "text" && entry.text) {
       lines.push(sanitizeRenderableText(entry.text));
     } else if (entry.type === "image") {
