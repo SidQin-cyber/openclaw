@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 export function toFormUrlEncoded(data: Record<string, string>): string {
   return Object.entries(data)
+    .filter(([, v]) => v != null)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
 }

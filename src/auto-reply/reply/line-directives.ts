@@ -43,7 +43,9 @@ export function parseLineDirectives(payload: ReplyPayload): ReplyPayload {
     const base = [`line.action=${encodeURIComponent(action)}`];
     if (extras) {
       for (const [key, value] of Object.entries(extras)) {
-        base.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+        if (value != null) {
+          base.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+        }
       }
     }
     return base.join("&");
