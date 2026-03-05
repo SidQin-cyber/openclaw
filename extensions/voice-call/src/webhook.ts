@@ -322,7 +322,12 @@ export class VoiceCallWebhookServer {
     req: http.IncomingMessage,
     webhookPath: string,
   ): Promise<WebhookResponsePayload> {
-    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    let url: URL;
+    try {
+      url = new URL(req.url || "/", `http://${req.headers.host}`);
+    } catch {
+      return { statusCode: 400, headers: {}, body: "Bad Request" };
+    }
 
     if (url.pathname === "/voice/hold-music") {
       return {

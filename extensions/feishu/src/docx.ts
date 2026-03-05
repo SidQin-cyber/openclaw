@@ -508,7 +508,12 @@ async function resolveUploadInput(
 
   if (url) {
     const fetched = await getFeishuRuntime().channel.media.fetchRemoteMedia({ url, maxBytes });
-    const urlPath = new URL(url).pathname;
+    let urlPath: string;
+    try {
+      urlPath = new URL(url).pathname;
+    } catch {
+      urlPath = url;
+    }
     const guessed = urlPath.split("/").pop() || "upload.bin";
     return {
       buffer: fetched.buffer,

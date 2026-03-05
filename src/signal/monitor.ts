@@ -268,7 +268,12 @@ async function fetchAttachment(params: {
   if (!result?.data) {
     return null;
   }
-  const buffer = Buffer.from(result.data, "base64");
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(result.data, "base64");
+  } catch {
+    return null;
+  }
   const saved = await saveMediaBuffer(
     buffer,
     attachment.contentType ?? undefined,
