@@ -607,6 +607,44 @@ function resolveMoonshotThinkingType(params: {
   return params.thinkingLevel === "off" ? "disabled" : "enabled";
 }
 
+const MINIMAX_PROVIDERS = new Set(["minimax", "minimax-cn", "minimax-portal"]);
+
+/**
+ * MiniMax M2.5 (reasoning: true) uses the Anthropic Messages API but only
+ * accepts tool_choice "auto" or "none" when thinking/reasoning is active.
+ * Normalize incompatible values to "auto" to avoid silent failures where
+ * the model returns a text-only completion instead of a tool call.
+ */
+function createMinimaxToolChoiceWrapper(baseStreamFn: StreamFn | undefined): StreamFn {
+  const underlying = baseStreamFn ?? streamSimple;
+  return (model, context, options) => {
+    const originalOnPayload = options?.onPayload;
+    return underlying(model, context, {
+      ...options,
+      onPayload: (payload) => {
+        if (payload && typeof payload === "object") {
+          const payloadObj = payload as Record<string, unknown>;
+          if (
+            payloadObj.tool_choice != null &&
+            payloadObj.tool_choice !== "auto" &&
+            payloadObj.tool_choice !== "none"
+          ) {
+            const isObjectAutoOrNone =
+              typeof payloadObj.tool_choice === "object" &&
+              !Array.isArray(payloadObj.tool_choice) &&
+              ((payloadObj.tool_choice as Record<string, unknown>).type === "auto" ||
+                (payloadObj.tool_choice as Record<string, unknown>).type === "none");
+            if (!isObjectAutoOrNone) {
+              payloadObj.tool_choice = "auto";
+            }
+          }
+        }
+        originalOnPayload?.(payload);
+      },
+    });
+  };
+}
+
 function isMoonshotToolChoiceCompatible(toolChoice: unknown): boolean {
   if (toolChoice == null) {
     return true;
@@ -920,6 +958,11 @@ export function applyExtraParamsToAgent(
       );
     }
     agent.streamFn = createMoonshotThinkingWrapper(agent.streamFn, moonshotThinkingType);
+  }
+
+  if (MINIMAX_PROVIDERS.has(provider)) {
+    log.debug(`applying MiniMax tool_choice normalization wrapper for ${provider}/${modelId}`);
+    agent.streamFn = createMinimaxToolChoiceWrapper(agent.streamFn);
   }
 
   if (provider === "openrouter") {
