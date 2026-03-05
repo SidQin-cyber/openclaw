@@ -69,3 +69,33 @@ export function resolveDiscordToken(
 
   return { token: "", source: "none" };
 }
+
+/**
+ * Returns true when any Discord token source is configured (config, accounts, or env).
+ * Shared helper for consistent credential detection across doctor, skills-status,
+ * and security audit paths.
+ */
+export function isDiscordTokenConfigured(cfg?: OpenClawConfig): boolean {
+  const discordCfg = cfg?.channels?.discord;
+  if (normalizeDiscordToken(discordCfg?.token ?? undefined, "channels.discord.token")) {
+    return true;
+  }
+  const accounts = discordCfg?.accounts;
+  if (accounts && typeof accounts === "object" && !Array.isArray(accounts)) {
+    for (const account of Object.values(accounts)) {
+      if (
+        account &&
+        normalizeDiscordToken(
+          (account as { token?: unknown }).token ?? undefined,
+          "channels.discord.accounts.*.token",
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+  if (normalizeDiscordToken(process.env.DISCORD_BOT_TOKEN, "DISCORD_BOT_TOKEN")) {
+    return true;
+  }
+  return false;
+}

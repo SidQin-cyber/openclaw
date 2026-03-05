@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
+import { isDiscordTokenConfigured } from "../discord/token.js";
 import { evaluateEntryRequirementsForCurrentPlatform } from "../shared/entry-status.js";
 import type { RequirementConfigCheck, Requirements } from "../shared/requirements.js";
 import { CONFIG_DIR } from "../utils.js";
@@ -185,7 +186,12 @@ function buildSkillStatus(
       skillConfig?.env?.[envName] ||
       (skillConfig?.apiKey && entry.metadata?.primaryEnv === envName),
     );
-  const isConfigSatisfied = (pathStr: string) => isConfigPathTruthy(config, pathStr);
+  const isConfigSatisfied = (pathStr: string) => {
+    if (pathStr === "channels.discord.token") {
+      return isDiscordTokenConfigured(config);
+    }
+    return isConfigPathTruthy(config, pathStr);
+  };
   const bundled =
     bundledNames && bundledNames.size > 0
       ? bundledNames.has(entry.skill.name)

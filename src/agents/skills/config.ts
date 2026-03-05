@@ -1,4 +1,5 @@
 import type { OpenClawConfig, SkillConfig } from "../../config/config.js";
+import { isDiscordTokenConfigured } from "../../discord/token.js";
 import {
   evaluateRuntimeEligibility,
   hasBinary,
@@ -97,6 +98,11 @@ export function shouldIncludeSkill(params: {
         skillConfig?.env?.[envName] ||
         (skillConfig?.apiKey && entry.metadata?.primaryEnv === envName),
       ),
-    isConfigPathTruthy: (configPath) => isConfigPathTruthy(config, configPath),
+    isConfigPathTruthy: (configPath) => {
+      if (configPath === "channels.discord.token") {
+        return isDiscordTokenConfigured(config);
+      }
+      return isConfigPathTruthy(config, configPath);
+    },
   });
 }

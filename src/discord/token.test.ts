@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
-import { resolveDiscordToken } from "./token.js";
+import { isDiscordTokenConfigured, resolveDiscordToken } from "./token.js";
 
 describe("resolveDiscordToken", () => {
   afterEach(() => {
@@ -103,5 +103,44 @@ describe("resolveDiscordToken", () => {
     expect(() => resolveDiscordToken(cfg)).toThrow(
       /channels\.discord\.token: unresolved SecretRef/i,
     );
+  });
+});
+
+describe("isDiscordTokenConfigured", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns true when channels.discord.token is set", () => {
+    const cfg = {
+      channels: { discord: { token: "bot-token" } },
+    } as OpenClawConfig;
+    expect(isDiscordTokenConfigured(cfg)).toBe(true);
+  });
+
+  it("returns true when DISCORD_BOT_TOKEN env is set", () => {
+    vi.stubEnv("DISCORD_BOT_TOKEN", "env-token");
+    const cfg = { channels: { discord: {} } } as OpenClawConfig;
+    expect(isDiscordTokenConfigured(cfg)).toBe(true);
+  });
+
+  it("returns true when an account token is configured", () => {
+    const cfg = {
+      channels: {
+        discord: {
+          accounts: { work: { token: "account-token" } },
+        },
+      },
+    } as unknown as OpenClawConfig;
+    expect(isDiscordTokenConfigured(cfg)).toBe(true);
+  });
+
+  it("returns false when no token source is available", () => {
+    const cfg = { channels: { discord: {} } } as OpenClawConfig;
+    expect(isDiscordTokenConfigured(cfg)).toBe(false);
+  });
+
+  it("returns false when config is undefined", () => {
+    expect(isDiscordTokenConfigured(undefined)).toBe(false);
   });
 });
