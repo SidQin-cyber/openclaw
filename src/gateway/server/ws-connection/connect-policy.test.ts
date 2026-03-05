@@ -58,6 +58,26 @@ describe("ws connect policy", () => {
       }).kind,
     ).toBe("allow");
 
+    // dangerouslyDisableDeviceAuth bypasses device identity even without shared auth.
+    const bypassPolicy = resolveControlUiAuthPolicy({
+      isControlUi: true,
+      controlUiConfig: { dangerouslyDisableDeviceAuth: true },
+      deviceRaw: null,
+    });
+    expect(
+      evaluateMissingDeviceIdentity({
+        hasDeviceIdentity: false,
+        role: "operator",
+        isControlUi: true,
+        controlUiAuthPolicy: bypassPolicy,
+        trustedProxyAuthOk: false,
+        sharedAuthOk: false,
+        authOk: false,
+        hasSharedAuth: false,
+        isLocalClient: false,
+      }).kind,
+    ).toBe("allow");
+
     const controlUiStrict = resolveControlUiAuthPolicy({
       isControlUi: true,
       controlUiConfig: { allowInsecureAuth: true, dangerouslyDisableDeviceAuth: false },
