@@ -146,6 +146,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
   const deliveredFinalTexts = new Set<string>();
   let partialUpdateQueue: Promise<void> = Promise.resolve();
   let streamingStartPromise: Promise<void> | null = null;
+  let droppedBlockText = "";
+  let sawFinal = false;
   type StreamTextUpdateMode = "snapshot" | "delta";
 
   const queueStreamingUpdate = (
@@ -231,6 +233,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, agentId),
       onReplyStart: () => {
         deliveredFinalTexts.clear();
+        droppedBlockText = "";
+        sawFinal = false;
         if (streamingEnabled && renderMode === "card") {
           startStreaming();
         }
@@ -246,6 +250,9 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               : [];
         const hasText = Boolean(text.trim());
         const hasMedia = mediaList.length > 0;
+        if (info?.kind === "final") {
+          sawFinal = true;
+        }
         const skipTextForDuplicateFinal =
           info?.kind === "final" && hasText && deliveredFinalTexts.has(text);
         const shouldDeliverText = hasText && !skipTextForDuplicateFinal;
@@ -258,9 +265,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
           const useCard = renderMode === "card" || (renderMode === "auto" && shouldUseCard(text));
 
           if (info?.kind === "block") {
-            // Drop internal block chunks unless we can safely consume them as
-            // streaming-card fallback content.
             if (!(streamingEnabled && useCard)) {
+              droppedBlockText = text;
               return;
             }
             startStreaming();
@@ -370,6 +376,44 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       },
       onIdle: async () => {
         await closeStreaming();
+        if (!sawFinal && droppedBlockText.trim()) {
+          const fallbackText = droppedBlockText;
+          droppedBlockText = "";
+          const useCard =
+            renderMode === "card" || (renderMode === "auto" && shouldUseCard(fallbackText));
+          if (useCard) {
+            for (const chunk of core.channel.text.chunkTextWithMode(
+              fallbackText,
+              textChunkLimit,
+              chunkMode,
+            )) {
+              await sendMarkdownCardFeishu({
+                cfg,
+                to: chatId,
+                text: chunk,
+                replyToMessageId: sendReplyToMessageId,
+                replyInThread: effectiveReplyInThread,
+                accountId,
+              });
+            }
+          } else {
+            const converted = core.channel.text.convertMarkdownTables(fallbackText, tableMode);
+            for (const chunk of core.channel.text.chunkTextWithMode(
+              converted,
+              textChunkLimit,
+              chunkMode,
+            )) {
+              await sendMessageFeishu({
+                cfg,
+                to: chatId,
+                text: chunk,
+                replyToMessageId: sendReplyToMessageId,
+                replyInThread: effectiveReplyInThread,
+                accountId,
+              });
+            }
+          }
+        }
         typingCallbacks.onIdle?.();
       },
       onCleanup: () => {

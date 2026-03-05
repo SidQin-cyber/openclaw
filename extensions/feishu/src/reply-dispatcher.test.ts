@@ -591,4 +591,45 @@ describe("createFeishuReplyDispatcher streaming behavior", () => {
       }),
     );
   });
+
+  it("flushes dropped block text on idle when no final was delivered", async () => {
+    createFeishuReplyDispatcher({
+      cfg: {} as never,
+      agentId: "agent",
+      runtime: {} as never,
+      chatId: "oc_chat",
+    });
+
+    const options = createReplyDispatcherWithTypingMock.mock.calls[0]?.[0];
+    options.onReplyStart?.();
+    await options.deliver({ text: "block-only reasoning output" }, { kind: "block" });
+
+    expect(sendMessageFeishuMock).not.toHaveBeenCalled();
+
+    await options.onIdle?.();
+
+    expect(sendMessageFeishuMock).toHaveBeenCalledTimes(1);
+    expect(sendMessageFeishuMock).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "block-only reasoning output" }),
+    );
+  });
+
+  it("does not flush block text when final was delivered", async () => {
+    createFeishuReplyDispatcher({
+      cfg: {} as never,
+      agentId: "agent",
+      runtime: {} as never,
+      chatId: "oc_chat",
+    });
+
+    const options = createReplyDispatcherWithTypingMock.mock.calls[0]?.[0];
+    options.onReplyStart?.();
+    await options.deliver({ text: "block chunk" }, { kind: "block" });
+    await options.deliver({ text: "final answer" }, { kind: "final" });
+
+    sendMessageFeishuMock.mockClear();
+    await options.onIdle?.();
+
+    expect(sendMessageFeishuMock).not.toHaveBeenCalled();
+  });
 });
