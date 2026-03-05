@@ -12,7 +12,8 @@
     bytes[i] = binary.charCodeAt(i);
   }
   const data = JSON.parse(new TextDecoder("utf-8").decode(bytes));
-  const { header, entries, leafId: defaultLeafId, systemPrompt, tools, renderedTools } = data;
+  const { header, entries: rawEntries, leafId: defaultLeafId, systemPrompt, tools, renderedTools } = data;
+  const entries = Array.isArray(rawEntries) ? rawEntries : [];
 
   // ============================================================
   // URL PARAMETER HANDLING
@@ -1037,7 +1038,7 @@
     const statusClass = result ? (isError ? "error" : "success") : "pending";
 
     const getResultText = () => {
-      if (!result) {
+      if (!result || !Array.isArray(result.content)) {
         return "";
       }
       const textBlocks = result.content.filter((c) => c.type === "text");
@@ -1045,7 +1046,7 @@
     };
 
     const getResultImages = () => {
-      if (!result) {
+      if (!result || !Array.isArray(result.content)) {
         return [];
       }
       return result.content.filter((c) => c.type === "image");

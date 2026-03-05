@@ -115,10 +115,15 @@ export default function register(api: OpenClawPluginApi) {
       }
 
       if (resp.status === 409) {
-        // Another agent owns this thread — cancel the send.
-        const body = (await resp.json()) as { owner?: string };
+        let owner: string | undefined;
+        try {
+          const body = (await resp.json()) as { owner?: string };
+          owner = body.owner;
+        } catch {
+          // non-JSON 409 response
+        }
         api.logger.info?.(
-          `thread-ownership: cancelled send to ${channelId}:${threadTs} — owned by ${body.owner}`,
+          `thread-ownership: cancelled send to ${channelId}:${threadTs} — owned by ${owner ?? "unknown"}`,
         );
         return { cancel: true };
       }
