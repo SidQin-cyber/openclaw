@@ -179,6 +179,29 @@ function isSystemdUnitNotEnabled(detail: string): boolean {
   );
 }
 
+/**
+ * Detects when `is-enabled` exits non-zero without any real error indication.
+ * Some systemd versions return exit 1 with no status text for unknown units;
+ * the only content in `detail` is the generic Node.js "Command failed:" prefix.
+ * This is NOT a systemctl availability error — it means the unit is not enabled.
+ */
+function isSystemdIsEnabledNonError(detail: string): boolean {
+  if (!detail) {
+    return true;
+  }
+  const normalized = detail.toLowerCase();
+  if (
+    normalized.includes("permission denied") ||
+    normalized.includes("access denied") ||
+    normalized.includes("authentication required") ||
+    normalized.includes("failed to connect to bus") ||
+    normalized.includes("polkit")
+  ) {
+    return false;
+  }
+  return /^command failed:/i.test(detail.trim());
+}
+
 function resolveSystemctlDirectUserScopeArgs(): string[] {
   return ["--user"];
 }
@@ -430,7 +453,10 @@ export async function isSystemdServiceEnabled(args: GatewayServiceEnvArgs): Prom
     return true;
   }
   const detail = readSystemctlDetail(res);
-  if (isSystemctlMissing(detail) || isSystemdUnitNotEnabled(detail)) {
+  if (isSystemctlMissing(detail)) {
+    return false;
+  }
+  if (isSystemdUnitNotEnabled(detail) || isSystemdIsEnabledNonError(detail)) {
     return false;
   }
   throw new Error(`systemctl is-enabled unavailable: ${detail || "unknown error"}`.trim());
