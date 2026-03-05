@@ -63,7 +63,7 @@ export function buildInboundMediaNote(ctx: MsgContext): string | undefined {
       if (decision.outcome !== "success") {
         continue;
       }
-      for (const attachment of decision.attachments) {
+      for (const attachment of decision.attachments ?? []) {
         if (attachment.chosen?.outcome === "success") {
           suppressed.add(attachment.attachmentIndex);
           if (decision.capability === "audio") {
