@@ -13,7 +13,6 @@ import {
 } from "../infra/device-identity.js";
 import { clearDevicePairing } from "../infra/device-pairing.js";
 import { normalizeFingerprint } from "../infra/tls/fingerprint.js";
-import { VERSION } from "../version.js";
 import { rawDataToString } from "../infra/ws.js";
 import { logDebug, logError } from "../logger.js";
 import {
