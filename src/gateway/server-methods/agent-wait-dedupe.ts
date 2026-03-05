@@ -201,7 +201,10 @@ export async function waitForTerminalGatewayDedupe(params: {
       return;
     }
 
-    const timeoutDelayMs = Math.max(1, Math.min(Math.floor(params.timeoutMs), 2_147_483_647));
+    const rawDelay = Math.floor(params.timeoutMs);
+    const timeoutDelayMs = Number.isFinite(rawDelay)
+      ? Math.max(1, Math.min(rawDelay, 2_147_483_647))
+      : 30_000;
     timeoutHandle = setTimeout(() => finish(null), timeoutDelayMs);
     timeoutHandle.unref?.();
 

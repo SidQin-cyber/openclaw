@@ -404,9 +404,14 @@ export async function scanOpenRouterModels(
     throw new Error("Missing OpenRouter API key. Set OPENROUTER_API_KEY to run models scan.");
   }
 
-  const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? DEFAULT_TIMEOUT_MS));
-  const concurrency = Math.max(1, Math.floor(options.concurrency ?? DEFAULT_CONCURRENCY));
-  const minParamB = Math.max(0, Math.floor(options.minParamB ?? 0));
+  const rawTimeoutMs = Math.floor(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(rawTimeoutMs) ? Math.max(1, rawTimeoutMs) : DEFAULT_TIMEOUT_MS;
+  const rawConcurrency = Math.floor(options.concurrency ?? DEFAULT_CONCURRENCY);
+  const concurrency = Number.isFinite(rawConcurrency)
+    ? Math.max(1, rawConcurrency)
+    : DEFAULT_CONCURRENCY;
+  const rawMinParamB = Math.floor(options.minParamB ?? 0);
+  const minParamB = Number.isFinite(rawMinParamB) ? Math.max(0, rawMinParamB) : 0;
   const maxAgeDays = Math.max(0, Math.floor(options.maxAgeDays ?? 0));
   const providerFilter = options.providerFilter?.trim().toLowerCase() ?? "";
 
