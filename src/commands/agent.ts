@@ -945,6 +945,12 @@ async function agentCommandInternal(
     });
   } finally {
     clearAgentRunContext(runId);
+    try {
+      const { stopBrowserControlService } = await import("../browser/control-service.js");
+      await stopBrowserControlService();
+    } catch {
+      // Browser control service may not have been started
+    }
   }
 }
 
