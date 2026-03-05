@@ -5,8 +5,13 @@ export const UNSCHEDULED_REMINDER_NOTE =
   "Note: I did not schedule a reminder in this turn, so this will not trigger automatically.";
 
 const REMINDER_COMMITMENT_PATTERNS: RegExp[] = [
-  /\b(?:i\s*['’]?ll|i will)\s+(?:make sure to\s+)?(?:remember|remind|ping|follow up|follow-up|check back|circle back)\b/i,
-  /\b(?:i\s*['’]?ll|i will)\s+(?:set|create|schedule)\s+(?:a\s+)?reminder\b/i,
+  /\b(?:i\s*['\u2019]?ll|i will)\s+(?:make sure to\s+)?(?:remember|remind|ping|follow up|follow-up|check back|circle back)\b/i,
+  /\b(?:i\s*['\u2019]?ll|i will)\s+(?:set|create|schedule)\s+(?:a\s+)?reminder\b/i,
+  /\b(?:i\s*['\u2019]?ll|i will)\s+(?:let you know|update you|notify you|get back to you|message you)\b/i,
+  /\b(?:i\s*['\u2019]?ll|i will)\s+(?:ping|buzz|reach out to)\s+you\b/i,
+  /(?:稍后|之后|晚[点些]|回头|待会[儿]?|一会[儿]?|过[一会]*)(?:.*?)(?:提醒|通知|告[诉知]|同步|更新|汇报|反馈)/u,
+  /(?:完成|做完|搞定|结束|处理好)(?:.*?)(?:后|之后|了)(?:.*?)(?:通知|告[诉知]|提醒|同步|更新|汇报)/u,
+  /(?:到时候|届时)(?:.*?)(?:告[诉知]|通知|提醒|同步|更新)/u,
 ];
 
 export function hasUnbackedReminderCommitment(text: string): boolean {
