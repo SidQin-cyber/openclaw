@@ -74,6 +74,13 @@ export type DiscordGuildEntry = {
   /** Optional allowlist for guild senders by role ID. */
   roles?: string[];
   channels?: Record<string, DiscordGuildChannelConfig>;
+  /**
+   * How the `channels` block is interpreted:
+   * - "allowlist": only listed channels are allowed (default when `channels` is set).
+   * - "all": all channels are allowed; listed entries provide per-channel overrides
+   *   (systemPrompt, tools, etc.) without restricting access.
+   */
+  channelPolicy?: "all" | "allowlist";
 };
 
 export type DiscordActionConfig = {

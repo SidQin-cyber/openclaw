@@ -26,6 +26,7 @@ export type DiscordGuildEntryResolved = {
   reactionNotifications?: "off" | "own" | "all" | "allowlist";
   users?: string[];
   roles?: string[];
+  channelPolicy?: "all" | "allowlist";
   channels?: Record<
     string,
     {

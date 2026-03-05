@@ -1343,7 +1343,9 @@ async function dispatchDiscordCommandInteraction(params: {
   }
   if (useAccessGroups && interaction.guild) {
     const channelAllowlistConfigured =
-      Boolean(guildInfo?.channels) && Object.keys(guildInfo?.channels ?? {}).length > 0;
+      guildInfo?.channelPolicy !== "all" &&
+      Boolean(guildInfo?.channels) &&
+      Object.keys(guildInfo?.channels ?? {}).length > 0;
     const channelAllowed = channelConfig?.allowed !== false;
     const { groupPolicy } = resolveOpenProviderRuntimeGroupPolicy({
       providerConfigPresent: cfg.channels?.discord !== undefined,

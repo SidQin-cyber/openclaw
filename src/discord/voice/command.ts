@@ -128,7 +128,9 @@ async function authorizeVoiceCommand(
   }
 
   const channelAllowlistConfigured =
-    Boolean(guildInfo?.channels) && Object.keys(guildInfo?.channels ?? {}).length > 0;
+    guildInfo?.channelPolicy !== "all" &&
+    Boolean(guildInfo?.channels) &&
+    Object.keys(guildInfo?.channels ?? {}).length > 0;
   const channelAllowed = channelConfig?.allowed !== false;
   if (
     !isDiscordGroupAllowedByPolicy({

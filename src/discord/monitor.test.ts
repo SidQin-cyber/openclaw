@@ -608,6 +608,45 @@ describe("discord groupPolicy gating", () => {
       expect(isDiscordGroupAllowedByPolicy(testCase.input), testCase.name).toBe(testCase.expected);
     }
   });
+
+  it("channelPolicy=all treats channels block as override-only (not allowlist)", () => {
+    const guildInfo: DiscordGuildEntryResolved = {
+      channels: { "123": { systemPrompt: "code help" } },
+      channelPolicy: "all",
+    };
+    const channelAllowlistConfigured =
+      guildInfo.channelPolicy !== "all" &&
+      Boolean(guildInfo.channels) &&
+      Object.keys(guildInfo.channels ?? {}).length > 0;
+    expect(channelAllowlistConfigured).toBe(false);
+    expect(
+      isDiscordGroupAllowedByPolicy({
+        groupPolicy: "allowlist",
+        guildAllowlisted: true,
+        channelAllowlistConfigured,
+        channelAllowed: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("channelPolicy=allowlist (default) keeps channels as allowlist", () => {
+    const guildInfo: DiscordGuildEntryResolved = {
+      channels: { "123": { systemPrompt: "code help" } },
+    };
+    const channelAllowlistConfigured =
+      guildInfo.channelPolicy !== "all" &&
+      Boolean(guildInfo.channels) &&
+      Object.keys(guildInfo.channels ?? {}).length > 0;
+    expect(channelAllowlistConfigured).toBe(true);
+    expect(
+      isDiscordGroupAllowedByPolicy({
+        groupPolicy: "allowlist",
+        guildAllowlisted: true,
+        channelAllowlistConfigured,
+        channelAllowed: false,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("discord group DM gating", () => {

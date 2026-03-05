@@ -370,6 +370,7 @@ export const DiscordGuildSchema = z
     users: DiscordIdListSchema.optional(),
     roles: DiscordIdListSchema.optional(),
     channels: z.record(z.string(), DiscordGuildChannelSchema.optional()).optional(),
+    channelPolicy: z.enum(["all", "allowlist"]).optional(),
   })
   .strict();
 
