@@ -499,6 +499,15 @@ describe("channel-health-monitor", () => {
       await expectRestartedChannel(manager, "slack");
     });
 
+    it("does not crash when channelAccounts is undefined", async () => {
+      const manager = createMockChannelManager({
+        getRuntimeSnapshot: vi.fn(() => ({ channels: {} }) as unknown as ChannelRuntimeSnapshot),
+      });
+      const monitor = await startAndRunCheck(manager);
+      expect(manager.stopChannel).not.toHaveBeenCalled();
+      monitor.stop();
+    });
+
     it("respects custom staleEventThresholdMs", async () => {
       const customThreshold = 10 * 60_000;
       const now = Date.now();

@@ -111,7 +111,7 @@ export function startChannelHealthMonitor(deps: ChannelHealthMonitorDeps): Chann
 
       const snapshot = channelManager.getRuntimeSnapshot();
 
-      for (const [channelId, accounts] of Object.entries(snapshot.channelAccounts)) {
+      for (const [channelId, accounts] of Object.entries(snapshot.channelAccounts ?? {})) {
         if (!accounts) {
           continue;
         }
