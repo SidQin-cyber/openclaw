@@ -33,6 +33,9 @@ const DISCORD_FORUM_LIKE_TYPES = new Set<number>([ChannelType.GuildForum, Channe
 function extractComponentAttachmentNames(spec: DiscordComponentMessageSpec): string[] {
   const names: string[] = [];
   for (const block of spec.blocks ?? []) {
+    if (block == null || typeof block !== "object") {
+      continue;
+    }
     if (block.type === "file") {
       names.push(resolveDiscordComponentAttachmentName(block.file));
     }

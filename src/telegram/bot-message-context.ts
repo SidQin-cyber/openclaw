@@ -483,7 +483,7 @@ export const buildTelegramMessageContext = async ({
   }
 
   const hasAnyMention = (msg.entities ?? msg.caption_entities ?? []).some(
-    (ent) => ent.type === "mention",
+    (ent) => ent != null && typeof ent === "object" && ent.type === "mention",
   );
   const explicitlyMentioned = botUsername ? hasBotMention(msg, botUsername) : false;
 
