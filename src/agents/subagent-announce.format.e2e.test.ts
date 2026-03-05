@@ -923,7 +923,44 @@ describe("subagent announce formatting", () => {
       expect(msg).toContain(testCase.expectedHeader);
       expect(msg).toContain(testCase.replyText);
       expect(msg).not.toContain(testCase.excludedHeader);
+      if (testCase.outcome.status === "error" && testCase.outcome.error) {
+        expect(msg).toContain(`Reason: ${testCase.outcome.error}`);
+      }
     }
+  });
+
+  it("includes error detail in failure header when subagent has no findings", async () => {
+    sendSpy.mockClear();
+    sessionStore = {
+      "agent:main:subagent:test": {
+        sessionId: "child-session-error-no-findings",
+      },
+      "agent:main:main": {
+        sessionId: "requester-session-error-no-findings",
+      },
+    };
+    chatHistoryMock.mockResolvedValueOnce({
+      messages: [{ role: "assistant", content: [{ type: "text", text: "(no output)" }] }],
+    });
+    readLatestAssistantReplyMock.mockResolvedValue("");
+
+    const didAnnounce = await runSubagentAnnounceFlow({
+      childSessionKey: "agent:main:subagent:test",
+      childRunId: "run-error-no-findings",
+      requesterSessionKey: "agent:main:main",
+      requesterDisplayKey: "main",
+      requesterOrigin: { channel: "discord", to: "channel:12345", accountId: "acct-1" },
+      ...defaultOutcomeAnnounce,
+      outcome: { status: "error", error: "⚠️ API rate limit reached. Please try again later." },
+      expectsCompletionMessage: true,
+    });
+
+    expect(didAnnounce).toBe(true);
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const call = sendSpy.mock.calls[0]?.[0] as { params?: Record<string, unknown> };
+    const msg = typeof (call?.params?.message) === "string" ? call.params.message as string : "";
+    expect(msg).toContain("❌ Subagent main failed");
+    expect(msg).toContain("Reason: ⚠️ API rate limit reached. Please try again later.");
   });
 
   it("routes manual completion direct-send using requester thread hints", async () => {

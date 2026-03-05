@@ -97,9 +97,12 @@ function buildCompletionDeliveryMessage(params: {
   }
   const header = (() => {
     if (params.outcome?.status === "error") {
-      return params.spawnMode === "session"
-        ? `❌ Subagent ${params.subagentName} failed this task (session remains active)`
-        : `❌ Subagent ${params.subagentName} failed`;
+      const base =
+        params.spawnMode === "session"
+          ? `❌ Subagent ${params.subagentName} failed this task (session remains active)`
+          : `❌ Subagent ${params.subagentName} failed`;
+      const detail = params.outcome.error?.trim();
+      return detail ? `${base}\n\nReason: ${detail}` : base;
     }
     if (params.outcome?.status === "timeout") {
       return params.spawnMode === "session"
