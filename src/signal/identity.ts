@@ -31,7 +31,8 @@ export function resolveSignalSender(params: {
   sourceNumber?: string | null;
   sourceUuid?: string | null;
 }): SignalSender | null {
-  const sourceNumber = params.sourceNumber?.trim();
+  const sourceNumber =
+    typeof params.sourceNumber === "string" ? params.sourceNumber.trim() : undefined;
   if (sourceNumber) {
     return {
       kind: "phone",
@@ -39,7 +40,7 @@ export function resolveSignalSender(params: {
       e164: normalizeE164(sourceNumber),
     };
   }
-  const sourceUuid = params.sourceUuid?.trim();
+  const sourceUuid = typeof params.sourceUuid === "string" ? params.sourceUuid.trim() : undefined;
   if (sourceUuid) {
     return { kind: "uuid", raw: sourceUuid };
   }

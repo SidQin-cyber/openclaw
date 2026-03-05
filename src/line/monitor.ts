@@ -130,8 +130,8 @@ export async function monitorLineProvider(
     webhookPath,
   } = opts;
   const resolvedAccountId = accountId ?? "default";
-  const token = channelAccessToken.trim();
-  const secret = channelSecret.trim();
+  const token = typeof channelAccessToken === "string" ? channelAccessToken.trim() : "";
+  const secret = typeof channelSecret === "string" ? channelSecret.trim() : "";
 
   if (!token) {
     throw new Error("LINE webhook mode requires a non-empty channel access token.");

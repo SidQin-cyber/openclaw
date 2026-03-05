@@ -103,7 +103,7 @@ export function resolveIMessageInboundDecision(params: {
   logVerbose?: (msg: string) => void;
 }): IMessageInboundDecision {
   const senderRaw = params.message.sender ?? "";
-  const sender = senderRaw.trim();
+  const sender = typeof senderRaw === "string" ? senderRaw.trim() : String(senderRaw);
   if (!sender) {
     return { kind: "drop", reason: "missing sender" };
   }

@@ -294,17 +294,19 @@ export function buildTemplateMessageFromPayload(
 ): TemplateMessage | null {
   switch (payload.type) {
     case "confirm": {
-      const confirmAction = payload.confirmData.startsWith("http")
-        ? uriAction(payload.confirmLabel, payload.confirmData)
-        : payload.confirmData.includes("=")
-          ? postbackAction(payload.confirmLabel, payload.confirmData, payload.confirmLabel)
-          : messageAction(payload.confirmLabel, payload.confirmData);
+      const confirmStr = typeof payload.confirmData === "string" ? payload.confirmData : "";
+      const confirmAction = confirmStr.startsWith("http")
+        ? uriAction(payload.confirmLabel, confirmStr)
+        : confirmStr.includes("=")
+          ? postbackAction(payload.confirmLabel, confirmStr, payload.confirmLabel)
+          : messageAction(payload.confirmLabel, confirmStr);
 
-      const cancelAction = payload.cancelData.startsWith("http")
-        ? uriAction(payload.cancelLabel, payload.cancelData)
-        : payload.cancelData.includes("=")
-          ? postbackAction(payload.cancelLabel, payload.cancelData, payload.cancelLabel)
-          : messageAction(payload.cancelLabel, payload.cancelData);
+      const cancelStr = typeof payload.cancelData === "string" ? payload.cancelData : "";
+      const cancelAction = cancelStr.startsWith("http")
+        ? uriAction(payload.cancelLabel, cancelStr)
+        : cancelStr.includes("=")
+          ? postbackAction(payload.cancelLabel, cancelStr, payload.cancelLabel)
+          : messageAction(payload.cancelLabel, cancelStr);
 
       return createConfirmTemplate(payload.text, confirmAction, cancelAction, payload.altText);
     }
