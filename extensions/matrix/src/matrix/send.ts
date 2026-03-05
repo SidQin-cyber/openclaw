@@ -29,7 +29,49 @@ import {
 } from "./send/types.js";
 
 const MATRIX_TEXT_LIMIT = 4000;
+const MATRIX_RATE_LIMIT_MAX_RETRIES = 3;
+const MATRIX_RATE_LIMIT_DEFAULT_DELAY_MS = 2000;
 const getCore = () => getMatrixRuntime();
+
+function isMatrixRateLimited(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as Record<string, unknown>;
+  const code =
+    (typeof e.errcode === "string" ? e.errcode : undefined) ??
+    (e.body && typeof e.body === "object"
+      ? (e.body as Record<string, unknown>).errcode
+      : undefined);
+  if (code === "M_LIMIT_EXCEEDED") return true;
+  const msg = typeof e.message === "string" ? e.message : "";
+  return msg.includes("M_LIMIT_EXCEEDED");
+}
+
+function extractRetryAfterMs(err: unknown): number {
+  if (!err || typeof err !== "object") return MATRIX_RATE_LIMIT_DEFAULT_DELAY_MS;
+  const e = err as Record<string, unknown>;
+  const ms =
+    (typeof e.retry_after_ms === "number" ? e.retry_after_ms : undefined) ??
+    (e.body && typeof e.body === "object"
+      ? (e.body as Record<string, unknown>).retry_after_ms
+      : undefined);
+  return typeof ms === "number" && Number.isFinite(ms) && ms > 0
+    ? ms
+    : MATRIX_RATE_LIMIT_DEFAULT_DELAY_MS;
+}
+
+export async function sendWithRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt >= MATRIX_RATE_LIMIT_MAX_RETRIES || !isMatrixRateLimited(err)) {
+        throw err;
+      }
+      const delayMs = extractRetryAfterMs(err);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
 
 export type { MatrixSendOpts, MatrixSendResult } from "./send/types.js";
 export { resolveMatrixRoomId } from "./send/targets.js";
@@ -75,9 +117,10 @@ export async function sendMessageMatrix(
         ? buildThreadRelation(threadId, opts.replyToId)
         : buildReplyRelation(opts.replyToId);
       const sendContent = async (content: MatrixOutboundContent) => {
-        // @vector-im/matrix-bot-sdk uses sendMessage differently
-        const eventId = await client.sendMessage(roomId, content);
-        return eventId;
+        return sendWithRateLimitRetry(async () => {
+          const eventId = await client.sendMessage(roomId, content);
+          return eventId;
+        });
       };
 
       let lastMessageId = "";
@@ -182,8 +225,9 @@ export async function sendPollMatrix(
     const pollPayload = threadId
       ? { ...pollContent, "m.relates_to": buildThreadRelation(threadId) }
       : pollContent;
-    // @vector-im/matrix-bot-sdk sendEvent returns eventId string directly
-    const eventId = await client.sendEvent(roomId, M_POLL_START, pollPayload);
+    const eventId = await sendWithRateLimitRetry(() =>
+      client.sendEvent(roomId, M_POLL_START, pollPayload),
+    );
 
     return {
       eventId: eventId ?? "unknown",
@@ -258,7 +302,9 @@ export async function reactMatrixMessage(
         key: emoji,
       },
     };
-    await resolved.sendEvent(resolvedRoom, EventType.Reaction, reaction);
+    await sendWithRateLimitRetry(() =>
+      resolved.sendEvent(resolvedRoom, EventType.Reaction, reaction),
+    );
   } finally {
     if (stopOnDone) {
       resolved.stop();

@@ -324,3 +324,42 @@ describe("resolveMediaMaxBytes cfg threading", () => {
     expect(runtimeLoadConfigMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("sendWithRateLimitRetry", () => {
+  it("retries on M_LIMIT_EXCEEDED and succeeds", async () => {
+    const { sendWithRateLimitRetry } = await import("./send.js");
+    let attempt = 0;
+    const fn = async () => {
+      attempt++;
+      if (attempt === 1) {
+        const err: Record<string, unknown> = new Error("rate limited");
+        err.errcode = "M_LIMIT_EXCEEDED";
+        err.retry_after_ms = 10;
+        throw err;
+      }
+      return "ok";
+    };
+    const result = await sendWithRateLimitRetry(fn);
+    expect(result).toBe("ok");
+    expect(attempt).toBe(2);
+  });
+
+  it("throws non-rate-limit errors immediately", async () => {
+    const { sendWithRateLimitRetry } = await import("./send.js");
+    const fn = async () => {
+      throw new Error("network down");
+    };
+    await expect(sendWithRateLimitRetry(fn)).rejects.toThrow("network down");
+  });
+
+  it("throws after max retries", async () => {
+    const { sendWithRateLimitRetry } = await import("./send.js");
+    const fn = async () => {
+      const err: Record<string, unknown> = new Error("rate limited");
+      err.errcode = "M_LIMIT_EXCEEDED";
+      err.retry_after_ms = 10;
+      throw err;
+    };
+    await expect(sendWithRateLimitRetry(fn)).rejects.toThrow("rate limited");
+  });
+});

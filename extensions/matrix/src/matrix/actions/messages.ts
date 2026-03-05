@@ -1,4 +1,4 @@
-import { resolveMatrixRoomId, sendMessageMatrix } from "../send.js";
+import { resolveMatrixRoomId, sendMessageMatrix, sendWithRateLimitRetry } from "../send.js";
 import { resolveActionClient } from "./client.js";
 import { resolveMatrixActionLimit } from "./limits.js";
 import { summarizeMatrixRawEvent } from "./summary.js";
@@ -56,7 +56,9 @@ export async function editMatrixMessage(
         event_id: messageId,
       },
     };
-    const eventId = await client.sendMessage(resolvedRoom, payload);
+    const eventId = await sendWithRateLimitRetry(() =>
+      client.sendMessage(resolvedRoom, payload),
+    );
     return { eventId: eventId ?? null };
   } finally {
     if (stopOnDone) {
