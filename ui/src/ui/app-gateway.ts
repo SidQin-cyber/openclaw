@@ -69,6 +69,7 @@ type GatewayHost = {
   assistantName: string;
   assistantAvatar: string | null;
   assistantAgentId: string | null;
+  serverVersion: string | null;
   sessionKey: string;
   chatRunId: string | null;
   refreshSessionsAfterChat: Set<string>;
@@ -150,6 +151,7 @@ export function connectGateway(host: GatewayHost) {
     token: host.settings.token.trim() ? host.settings.token : undefined,
     password: host.password.trim() ? host.password : undefined,
     clientName: "openclaw-control-ui",
+    clientVersion: host.serverVersion ?? undefined,
     mode: "webchat",
     instanceId: host.clientInstanceId,
     onHello: (hello) => {
