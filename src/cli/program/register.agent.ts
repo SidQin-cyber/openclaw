@@ -26,6 +26,7 @@ export function registerAgentCommands(program: Command, args: { agentChannelOpti
     .requiredOption("-m, --message <text>", "Message body for the agent")
     .option("-t, --to <number>", "Recipient number in E.164 used to derive the session key")
     .option("--session-id <id>", "Use an explicit session id")
+    .option("--session-key <key>", "Use an explicit session key (overrides --to routing)")
     .option("--agent <id>", "Agent id (overrides routing bindings)")
     .option("--thinking <level>", "Thinking level: off | minimal | low | medium | high")
     .option("--verbose <on|off>", "Persist agent verbose level for the session")
@@ -58,6 +59,10 @@ ${formatHelpExamples([
   [
     'openclaw agent --session-id 1234 --message "Summarize inbox" --thinking medium',
     "Target a session with explicit thinking level.",
+  ],
+  [
+    'openclaw agent --agent dev --session-key "agent:dev:telegram:group:-100123456789" --message "Start implementation" --deliver --channel telegram',
+    "Target a specific agent group-chat session.",
   ],
   [
     'openclaw agent --to +15555550123 --message "Trace logs" --verbose on --json',
