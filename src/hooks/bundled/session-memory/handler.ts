@@ -243,7 +243,9 @@ const saveSessionToMemory: HookHandler = async (event) => {
     let slug: string | null = null;
     let sessionContent: string | null = null;
 
-    if (sessionFile) {
+    const slugMode = cfg?.memory?.slugMode ?? "llm";
+
+    if (sessionFile && slugMode !== "timestamp") {
       // Get recent conversation content, with fallback to rotated reset transcript.
       sessionContent = await getRecentSessionContentWithResetFallback(sessionFile, messageCount);
       log.debug("Session content loaded", {
@@ -269,9 +271,14 @@ const saveSessionToMemory: HookHandler = async (event) => {
 
     // If no slug, use timestamp
     if (!slug) {
-      const timeSlug = now.toISOString().split("T")[1].split(".")[0].replace(/:/g, "");
-      slug = timeSlug.slice(0, 4); // HHMM
-      log.debug("Using fallback timestamp slug", { slug });
+      if (slugMode === "timestamp") {
+        const ts = now.toISOString().split("T")[1].split(".")[0].replace(/:/g, "");
+        slug = ts; // HHMMSS
+      } else {
+        const timeSlug = now.toISOString().split("T")[1].split(".")[0].replace(/:/g, "");
+        slug = timeSlug.slice(0, 4); // HHMM
+      }
+      log.debug("Using fallback timestamp slug", { slug, slugMode });
     }
 
     // Create filename with date and slug

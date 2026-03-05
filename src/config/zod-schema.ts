@@ -116,6 +116,8 @@ const MemorySchema = z
     backend: z.union([z.literal("builtin"), z.literal("qmd")]).optional(),
     citations: z.union([z.literal("auto"), z.literal("on"), z.literal("off")]).optional(),
     qmd: MemoryQmdSchema.optional(),
+    slugMode: z.union([z.literal("llm"), z.literal("timestamp")]).optional(),
+    slugModel: z.string().optional(),
   })
   .strict()
   .optional();

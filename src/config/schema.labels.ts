@@ -327,6 +327,8 @@ export const FIELD_LABELS: Record<string, string> = {
   "agents.defaults.memorySearch.cache.maxEntries": "Memory Search Embedding Cache Max Entries",
   memory: "Memory",
   "memory.backend": "Memory Backend",
+  "memory.slugMode": "Slug Generation Mode",
+  "memory.slugModel": "Slug Generation Model",
   "memory.citations": "Memory Citations Mode",
   "memory.qmd.command": "QMD Binary",
   "memory.qmd.mcporter": "QMD MCPorter",

@@ -4,10 +4,25 @@ export type MemoryBackend = "builtin" | "qmd";
 export type MemoryCitationsMode = "auto" | "on" | "off";
 export type MemoryQmdSearchMode = "query" | "search" | "vsearch";
 
+export type MemorySlugMode = "llm" | "timestamp";
+
 export type MemoryConfig = {
   backend?: MemoryBackend;
   citations?: MemoryCitationsMode;
   qmd?: MemoryQmdConfig;
+  /**
+   * How session-memory filenames (slugs) are generated.
+   * - "llm" (default): uses a lightweight LLM call to produce a 1–2 word slug.
+   * - "timestamp": skips the LLM call entirely and uses YYYY-MM-DD-HHMMSS.
+   */
+  slugMode?: MemorySlugMode;
+  /**
+   * Override the model used for LLM-based slug generation.
+   * Accepts "provider/model" format (e.g. "openrouter/google/gemini-flash-2.0").
+   * When unset, the agent's primary model is used — which may waste RPM on
+   * expensive frontier models for a trivial text task.
+   */
+  slugModel?: string;
 };
 
 export type MemoryQmdConfig = {

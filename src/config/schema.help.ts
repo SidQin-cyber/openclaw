@@ -784,6 +784,10 @@ export const FIELD_HELP: Record<string, string> = {
   memory: "Memory backend configuration (global).",
   "memory.backend":
     'Selects the global memory engine: "builtin" uses OpenClaw memory internals, while "qmd" uses the QMD sidecar pipeline. Keep "builtin" unless you intentionally operate QMD.',
+  "memory.slugMode":
+    'How session-memory filenames are generated. "llm" (default) uses a lightweight LLM call to produce a descriptive 1-2 word slug. "timestamp" skips the LLM entirely and uses YYYY-MM-DD-HHMMSS — useful when rate-limited or on metered providers.',
+  "memory.slugModel":
+    "Override the model used for LLM-based slug generation (provider/model format). When unset, the agent's primary model is used, which may waste RPM on expensive frontier models for a trivial text task.",
   "memory.citations":
     'Controls citation visibility in replies: "auto" shows citations when useful, "on" always shows them, and "off" hides them. Keep "auto" for a balanced signal-to-noise default.',
   "memory.qmd.command":
