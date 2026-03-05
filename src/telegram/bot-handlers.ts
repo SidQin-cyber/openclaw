@@ -350,14 +350,19 @@ export const registerTelegramHandlers = ({
         let media;
         try {
           media = await resolveMedia(ctx, mediaMaxBytes, opts.token, opts.proxyFetch);
-        } catch (mediaErr) {
-          if (!isRecoverableMediaGroupError(mediaErr)) {
-            throw mediaErr;
+        } catch (firstErr) {
+          if (!isRecoverableMediaGroupError(firstErr)) {
+            throw firstErr;
           }
-          runtime.log?.(
-            warn(`media group: skipping photo that failed to fetch: ${String(mediaErr)}`),
-          );
-          continue;
+          try {
+            await new Promise((r) => setTimeout(r, 500));
+            media = await resolveMedia(ctx, mediaMaxBytes, opts.token, opts.proxyFetch);
+          } catch (retryErr) {
+            runtime.log?.(
+              warn(`media group: skipping photo after retry: ${String(retryErr)}`),
+            );
+            continue;
+          }
         }
         if (media) {
           allMedia.push({
