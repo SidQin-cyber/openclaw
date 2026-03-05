@@ -607,6 +607,8 @@ export const OpenClawSchema = z
             dangerouslyAllowHostHeaderOriginFallback: z.boolean().optional(),
             allowInsecureAuth: z.boolean().optional(),
             dangerouslyDisableDeviceAuth: z.boolean().optional(),
+            autoApproveDevices: z.boolean().optional(),
+            requirePairing: z.boolean().optional(),
           })
           .strict()
           .optional(),
