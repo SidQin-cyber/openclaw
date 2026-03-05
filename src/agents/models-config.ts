@@ -16,10 +16,17 @@ type ModelsConfig = NonNullable<OpenClawConfig["models"]>;
 
 const DEFAULT_MODE: NonNullable<ModelsConfig["mode"]> = "merge";
 
-function resolvePreferredTokenLimit(explicitValue: number, implicitValue: number): number {
-  // Keep catalog refresh behavior for stale low values while preserving
-  // intentional larger user overrides (for example Ollama >128k contexts).
-  return explicitValue > implicitValue ? explicitValue : implicitValue;
+function resolvePreferredTokenLimit(explicitValue: number, _implicitValue: number): number {
+  // Honour user-configured values unconditionally.  The previous
+  // max(explicit, implicit) logic prevented stale catalog entries from
+  // capping discovery values, but it also overrode intentional user limits
+  // — e.g. a user setting contextWindow:4096 for an Ollama model would be
+  // silently replaced by the 262144 value returned by /api/show, making
+  // the model unusable on low-RAM machines (#35436).
+  //
+  // Models that appear only in the implicit catalog (no user config entry)
+  // are unaffected — they keep their discovery values.
+  return explicitValue;
 }
 
 function mergeProviderModels(implicit: ProviderConfig, explicit: ProviderConfig): ProviderConfig {
