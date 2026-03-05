@@ -314,6 +314,40 @@ function createOpenAIResponsesContextManagementWrapper(
   };
 }
 
+/**
+ * Default `tool_choice` to `"auto"` for OpenAI Responses API requests that
+ * include tools but omit an explicit tool_choice.  Custom (non-OpenAI)
+ * providers route through `streamSimple` which never injects this field,
+ * causing the model to ignore tools and return text-only completions.
+ */
+function createOpenAIResponsesToolChoiceDefaultWrapper(
+  baseStreamFn: StreamFn | undefined,
+): StreamFn {
+  const underlying = baseStreamFn ?? streamSimple;
+  return (model, context, options) => {
+    if (typeof model.api !== "string" || !OPENAI_RESPONSES_APIS.has(model.api)) {
+      return underlying(model, context, options);
+    }
+    const originalOnPayload = options?.onPayload;
+    return underlying(model, context, {
+      ...options,
+      onPayload: (payload) => {
+        if (payload && typeof payload === "object") {
+          const payloadObj = payload as Record<string, unknown>;
+          if (
+            Array.isArray(payloadObj.tools) &&
+            payloadObj.tools.length > 0 &&
+            payloadObj.tool_choice == null
+          ) {
+            payloadObj.tool_choice = "auto";
+          }
+        }
+        originalOnPayload?.(payload);
+      },
+    });
+  };
+}
+
 function createCodexDefaultTransportWrapper(baseStreamFn: StreamFn | undefined): StreamFn {
   const underlying = baseStreamFn ?? streamSimple;
   return (model, context, options) =>
@@ -964,4 +998,9 @@ export function applyExtraParamsToAgent(
   // Force `store=true` for direct OpenAI Responses models and auto-enable
   // server-side compaction for compatible OpenAI Responses payloads.
   agent.streamFn = createOpenAIResponsesContextManagementWrapper(agent.streamFn, merged);
+
+  // Default tool_choice to "auto" for OpenAI Responses API when tools are
+  // present but tool_choice is null/undefined.  Custom providers that route
+  // through streamSimple never set this field, causing silent tool failures.
+  agent.streamFn = createOpenAIResponsesToolChoiceDefaultWrapper(agent.streamFn);
 }
