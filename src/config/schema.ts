@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { CHANNEL_IDS } from "../channels/registry.js";
 import { VERSION } from "../version.js";
 import type { ConfigUiHint, ConfigUiHints } from "./schema.hints.js";
@@ -304,6 +305,7 @@ function buildMergedSchemaCacheKey(params: {
   plugins: PluginUiMetadata[];
   channels: ChannelUiMetadata[];
 }): string {
+  const hash = createHash("sha256");
   const plugins = params.plugins
     .map((plugin) => ({
       id: plugin.id,
@@ -322,7 +324,14 @@ function buildMergedSchemaCacheKey(params: {
       configUiHints: channel.configUiHints ?? null,
     }))
     .toSorted((a, b) => a.id.localeCompare(b.id));
-  return JSON.stringify({ plugins, channels });
+  for (const plugin of plugins) {
+    hash.update(JSON.stringify(plugin));
+  }
+  hash.update("\x00");
+  for (const channel of channels) {
+    hash.update(JSON.stringify(channel));
+  }
+  return hash.digest("hex");
 }
 
 function setMergedSchemaCache(key: string, value: ConfigSchemaResponse): void {
