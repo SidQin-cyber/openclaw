@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractAssistantText,
   formatReasoningMessage,
+  promoteThinkingTagsToBlocks,
   stripDowngradedToolCallText,
 } from "./pi-embedded-utils.js";
 
@@ -555,5 +556,32 @@ describe("empty input handling", () => {
     for (const helper of helpers) {
       expect(helper("")).toBe("");
     }
+  });
+});
+
+describe("promoteThinkingTagsToBlocks", () => {
+  it("does not crash when content contains null entries", () => {
+    const msg = makeAssistantMessage({
+      role: "assistant",
+      content: [null, { type: "text", text: "ok" }] as unknown as AssistantMessage["content"],
+    });
+    expect(() => promoteThinkingTagsToBlocks(msg)).not.toThrow();
+  });
+
+  it("does not crash when content contains undefined entries", () => {
+    const msg = makeAssistantMessage({
+      role: "assistant",
+      content: [undefined, { type: "text", text: "ok" }] as unknown as AssistantMessage["content"],
+    });
+    expect(() => promoteThinkingTagsToBlocks(msg)).not.toThrow();
+  });
+
+  it("preserves well-formed content with no thinking tags", () => {
+    const msg = makeAssistantMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "hello world" }] as AssistantMessage["content"],
+    });
+    promoteThinkingTagsToBlocks(msg);
+    expect(msg.content).toEqual([{ type: "text", text: "hello world" }]);
   });
 });
