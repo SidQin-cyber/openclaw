@@ -599,7 +599,7 @@ describe("buildAgentSystemPrompt", () => {
       reasoningLevel: "off",
     });
 
-    expect(prompt).toContain("Reasoning: off");
+    expect(prompt).toContain("Reasoning: configurable");
     expect(prompt).toContain("/reasoning");
     expect(prompt).toContain("/status shows Reasoning");
   });
@@ -671,6 +671,22 @@ describe("buildAgentSystemPrompt", () => {
 
     expect(prompt).toContain("## Reactions");
     expect(prompt).toContain("Reactions are enabled for Telegram in MINIMAL mode.");
+  });
+});
+
+describe("system prompt cache stability", () => {
+  it("produces identical system prompt regardless of reasoning level", () => {
+    const base = { workspaceDir: "/tmp/openclaw" };
+    const promptOff = buildAgentSystemPrompt({ ...base, reasoningLevel: "off" });
+    const promptOn = buildAgentSystemPrompt({ ...base, reasoningLevel: "on" });
+    const promptStream = buildAgentSystemPrompt({ ...base, reasoningLevel: "stream" });
+
+    expect(promptOff).toBe(promptOn);
+    expect(promptOn).toBe(promptStream);
+    expect(promptOff).toContain("Reasoning: configurable");
+    expect(promptOff).not.toContain("Reasoning: off");
+    expect(promptOff).not.toContain("Reasoning: on");
+    expect(promptOff).not.toContain("Reasoning: stream");
   });
 });
 
