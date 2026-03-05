@@ -135,6 +135,19 @@ describe("delivery-queue", () => {
       expect(entry.lastAttemptAt).toBeGreaterThan(0);
       expect(entry.lastError).toBe("connection refused");
     });
+
+    it("does not crash when queue file contains corrupted JSON", async () => {
+      const queueDir = path.join(tmpDir, "delivery-queue");
+      fs.mkdirSync(queueDir, { recursive: true });
+      const id = "corrupted-entry";
+      fs.writeFileSync(path.join(queueDir, `${id}.json`), "NOT-VALID-JSON{{{", "utf-8");
+
+      await expect(failDelivery(id, "retry", tmpDir)).resolves.toBeUndefined();
+    });
+
+    it("does not crash when queue file is missing", async () => {
+      await expect(failDelivery("nonexistent-id", "retry", tmpDir)).resolves.toBeUndefined();
+    });
   });
 
   describe("moveToFailed", () => {

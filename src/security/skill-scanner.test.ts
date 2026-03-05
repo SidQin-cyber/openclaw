@@ -143,6 +143,16 @@ const ws = new WebSocket("ws://remote.host:9999");
     );
   });
 
+  it("does not flag WebSocket to standard ports", () => {
+    const source = `
+const ws1 = new WebSocket("ws://example.com:443");
+const ws2 = new WebSocket("ws://example.com:80");
+const ws3 = new WebSocket("ws://example.com:8080");
+`;
+    const findings = scanSource(source, "plugin.ts");
+    expect(findings.some((f) => f.ruleId === "suspicious-network")).toBe(false);
+  });
+
   it("detects process.env access combined with network send (env harvesting)", () => {
     const source = `
 const secrets = JSON.stringify(process.env);

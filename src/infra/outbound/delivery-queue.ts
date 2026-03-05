@@ -127,8 +127,18 @@ export async function ackDelivery(id: string, stateDir?: string): Promise<void> 
 /** Update a queue entry after a failed delivery attempt. */
 export async function failDelivery(id: string, error: string, stateDir?: string): Promise<void> {
   const filePath = path.join(resolveQueueDir(stateDir), `${id}.json`);
-  const raw = await fs.promises.readFile(filePath, "utf-8");
-  const entry: QueuedDelivery = JSON.parse(raw);
+  let raw: string;
+  try {
+    raw = await fs.promises.readFile(filePath, "utf-8");
+  } catch {
+    return;
+  }
+  let entry: QueuedDelivery;
+  try {
+    entry = JSON.parse(raw);
+  } catch {
+    return;
+  }
   entry.retryCount += 1;
   entry.lastAttemptAt = Date.now();
   entry.lastError = error;
