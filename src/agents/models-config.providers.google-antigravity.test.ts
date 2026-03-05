@@ -64,7 +64,7 @@ describe("google-antigravity provider normalization", () => {
     const normalized = normalizeProviders({ providers, agentDir });
 
     expect(normalized).not.toBe(providers);
-    expect(normalized?.["google-antigravity"]?.models.map((model) => model.id)).toEqual([
+    expect(normalized?.["google-antigravity"]?.models?.map((model) => model.id)).toEqual([
       "gemini-3-pro-low",
       "gemini-3.1-pro-low",
       "gemini-3-1-pro-low",

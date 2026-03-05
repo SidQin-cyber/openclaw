@@ -36,12 +36,12 @@ describe("NVIDIA provider", () => {
     expect(provider.baseUrl).toBe("https://integrate.api.nvidia.com/v1");
     expect(provider.api).toBe("openai-completions");
     expect(provider.models).toBeDefined();
-    expect(provider.models.length).toBeGreaterThan(0);
+    expect(provider.models!.length).toBeGreaterThan(0);
   });
 
   it("should include default nvidia models", () => {
     const provider = buildNvidiaProvider();
-    const modelIds = provider.models.map((m) => m.id);
+    const modelIds = provider.models!.map((m) => m.id);
     expect(modelIds).toContain("nvidia/llama-3.1-nemotron-70b-instruct");
     expect(modelIds).toContain("meta/llama-3.3-70b-instruct");
     expect(modelIds).toContain("nvidia/mistral-nemo-minitron-8b-8k-instruct");

@@ -50,18 +50,18 @@ describe("Kilo Gateway implicit provider", () => {
     expect(provider.baseUrl).toBe("https://api.kilo.ai/api/gateway/");
     expect(provider.api).toBe("openai-completions");
     expect(provider.models).toBeDefined();
-    expect(provider.models.length).toBeGreaterThan(0);
+    expect(provider.models!.length).toBeGreaterThan(0);
   });
 
   it("should include the default kilocode model", () => {
     const provider = buildKilocodeProvider();
-    const modelIds = provider.models.map((m) => m.id);
+    const modelIds = provider.models!.map((m) => m.id);
     expect(modelIds).toContain("anthropic/claude-opus-4.6");
   });
 
   it("should include the full surfaced model catalog", () => {
     const provider = buildKilocodeProvider();
-    const modelIds = provider.models.map((m) => m.id);
+    const modelIds = provider.models!.map((m) => m.id);
     for (const modelId of KILOCODE_MODEL_IDS) {
       expect(modelIds).toContain(modelId);
     }

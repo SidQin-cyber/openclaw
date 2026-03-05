@@ -460,6 +460,9 @@ function normalizeProviderModels(
   provider: ProviderConfig,
   normalizeId: (id: string) => string,
 ): ProviderConfig {
+  if (!provider.models) {
+    return provider;
+  }
   let mutated = false;
   const models = provider.models.map((model) => {
     const nextId = normalizeId(model.id);
@@ -1062,7 +1065,7 @@ export async function resolveImplicitProviders(params: {
     const ollamaProvider = await buildOllamaProvider(ollamaBaseUrl, {
       quiet: !ollamaKey && !hasExplicitOllamaConfig,
     });
-    if (ollamaProvider.models.length > 0 || ollamaKey || explicitOllama?.apiKey) {
+    if ((ollamaProvider.models?.length ?? 0) > 0 || ollamaKey || explicitOllama?.apiKey) {
       providers.ollama = {
         ...ollamaProvider,
         apiKey: ollamaKey ?? explicitOllama?.apiKey ?? "ollama-local",

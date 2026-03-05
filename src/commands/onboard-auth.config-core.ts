@@ -218,7 +218,7 @@ export function applyKimiCodeProviderConfig(cfg: OpenClawConfig): OpenClawConfig
     alias: models[KIMI_CODING_MODEL_REF]?.alias ?? "Kimi for Coding",
   };
 
-  const defaultModel = buildKimiCodingProvider().models[0];
+  const defaultModel = buildKimiCodingProvider().models![0];
 
   return applyProviderConfigWithDefaultModel(cfg, {
     agentModels: models,
@@ -286,7 +286,7 @@ export function applyXiaomiProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
     agentModels: models,
     providerId: "xiaomi",
     api: resolvedApi,
-    baseUrl: defaultProvider.baseUrl,
+    baseUrl: defaultProvider.baseUrl!,
     defaultModels: defaultProvider.models ?? [],
     defaultModelId: XIAOMI_DEFAULT_MODEL_ID,
   });

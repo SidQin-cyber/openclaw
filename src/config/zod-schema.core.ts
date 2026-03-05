@@ -226,7 +226,7 @@ export const ModelDefinitionSchema = z
 
 export const ModelProviderSchema = z
   .object({
-    baseUrl: z.string().min(1),
+    baseUrl: z.string().min(1).optional(),
     apiKey: SecretInputSchema.optional().register(sensitive),
     auth: z
       .union([z.literal("api-key"), z.literal("aws-sdk"), z.literal("oauth"), z.literal("token")])
@@ -235,7 +235,7 @@ export const ModelProviderSchema = z
     injectNumCtxForOpenAICompat: z.boolean().optional(),
     headers: z.record(z.string(), z.string()).optional(),
     authHeader: z.boolean().optional(),
-    models: z.array(ModelDefinitionSchema),
+    models: z.array(ModelDefinitionSchema).optional(),
   })
   .strict();
 

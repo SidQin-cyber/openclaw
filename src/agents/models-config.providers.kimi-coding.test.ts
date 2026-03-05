@@ -26,8 +26,8 @@ describe("kimi-coding implicit provider (#22409)", () => {
     expect(provider.api).toBe("anthropic-messages");
     expect(provider.baseUrl).toBe("https://api.kimi.com/coding/");
     expect(provider.models).toBeDefined();
-    expect(provider.models.length).toBeGreaterThan(0);
-    expect(provider.models[0].id).toBe("k2p5");
+    expect(provider.models!.length).toBeGreaterThan(0);
+    expect(provider.models![0].id).toBe("k2p5");
   });
 
   it("should not include kimi-coding when no API key is configured", async () => {
