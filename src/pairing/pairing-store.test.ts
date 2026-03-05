@@ -494,3 +494,56 @@ describe("pairing store", () => {
     });
   });
 });
+
+describe("path traversal protection", () => {
+  it("rejects channel IDs containing traversal sequences", async () => {
+    await withTempStateDir(async () => {
+      await expect(
+        listChannelPairingRequests("../../etc" as "telegram"),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("rejects channel IDs with encoded separators", async () => {
+    await withTempStateDir(async () => {
+      await expect(
+        listChannelPairingRequests("foo/bar" as "telegram"),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("rejects channel IDs with backslash separators", async () => {
+    await withTempStateDir(async () => {
+      await expect(
+        listChannelPairingRequests("foo\\bar" as "telegram"),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("rejects absolute path injection in channel ID", async () => {
+    await withTempStateDir(async () => {
+      await expect(
+        listChannelPairingRequests("/tmp/evil" as "telegram"),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("rejects traversal in account ID via allowFrom operations", async () => {
+    await withTempStateDir(async () => {
+      await expect(
+        addChannelAllowFromStoreEntry({
+          channel: "telegram",
+          entry: "12345",
+          accountId: "../../etc/passwd",
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("accepts valid channel IDs without error", async () => {
+    await withTempStateDir(async () => {
+      const requests = await listChannelPairingRequests("telegram");
+      expect(requests).toEqual([]);
+    });
+  });
+});

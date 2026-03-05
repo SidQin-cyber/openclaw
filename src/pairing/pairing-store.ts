@@ -65,15 +65,31 @@ function safeChannelKey(channel: PairingChannel): string {
   if (!raw) {
     throw new Error("invalid pairing channel");
   }
-  const safe = raw.replace(/[\\/:*?"<>|]/g, "_").replace(/\.\./g, "_");
-  if (!safe || safe === "_") {
+  if (/[\\/:*?"<>|]/.test(raw) || /\.\./.test(raw)) {
+    throw new Error("invalid pairing channel: contains path separator or traversal sequence");
+  }
+  if (!raw || raw === "_") {
     throw new Error("invalid pairing channel");
   }
-  return safe;
+  return raw;
+}
+
+function assertWithinRoot(resolved: string, root: string): void {
+  const normalizedResolved = path.resolve(resolved);
+  const normalizedRoot = path.resolve(root);
+  if (
+    !normalizedResolved.startsWith(normalizedRoot + path.sep) &&
+    normalizedResolved !== normalizedRoot
+  ) {
+    throw new Error("pairing store path escapes root directory");
+  }
 }
 
 function resolvePairingPath(channel: PairingChannel, env: NodeJS.ProcessEnv = process.env): string {
-  return path.join(resolveCredentialsDir(env), `${safeChannelKey(channel)}-pairing.json`);
+  const root = resolveCredentialsDir(env);
+  const resolved = path.join(root, `${safeChannelKey(channel)}-pairing.json`);
+  assertWithinRoot(resolved, root);
+  return resolved;
 }
 
 function safeAccountKey(accountId: string): string {
@@ -81,11 +97,13 @@ function safeAccountKey(accountId: string): string {
   if (!raw) {
     throw new Error("invalid pairing account id");
   }
-  const safe = raw.replace(/[\\/:*?"<>|]/g, "_").replace(/\.\./g, "_");
-  if (!safe || safe === "_") {
+  if (/[\\/:*?"<>|]/.test(raw) || /\.\./.test(raw)) {
+    throw new Error("invalid pairing account id: contains path separator or traversal sequence");
+  }
+  if (!raw || raw === "_") {
     throw new Error("invalid pairing account id");
   }
-  return safe;
+  return raw;
 }
 
 function resolveAllowFromPath(
@@ -93,15 +111,14 @@ function resolveAllowFromPath(
   env: NodeJS.ProcessEnv = process.env,
   accountId?: string,
 ): string {
+  const root = resolveCredentialsDir(env);
   const base = safeChannelKey(channel);
   const normalizedAccountId = typeof accountId === "string" ? accountId.trim() : "";
-  if (!normalizedAccountId) {
-    return path.join(resolveCredentialsDir(env), `${base}-allowFrom.json`);
-  }
-  return path.join(
-    resolveCredentialsDir(env),
-    `${base}-${safeAccountKey(normalizedAccountId)}-allowFrom.json`,
-  );
+  const resolved = normalizedAccountId
+    ? path.join(root, `${base}-${safeAccountKey(normalizedAccountId)}-allowFrom.json`)
+    : path.join(root, `${base}-allowFrom.json`);
+  assertWithinRoot(resolved, root);
+  return resolved;
 }
 
 async function readJsonFile<T>(
