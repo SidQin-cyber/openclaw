@@ -16,10 +16,18 @@ type ModelsConfig = NonNullable<OpenClawConfig["models"]>;
 
 const DEFAULT_MODE: NonNullable<ModelsConfig["mode"]> = "merge";
 
-function resolvePreferredTokenLimit(explicitValue: number, implicitValue: number): number {
-  // Keep catalog refresh behavior for stale low values while preserving
-  // intentional larger user overrides (for example Ollama >128k contexts).
-  return explicitValue > implicitValue ? explicitValue : implicitValue;
+function resolvePreferredTokenLimit(
+  explicitValue: number | undefined,
+  implicitValue: number,
+): number {
+  // When the user explicitly sets a value in their config (field is present),
+  // honour it unconditionally — they may intentionally lower the limit (e.g.
+  // Ollama users on constrained hardware reducing contextWindow to 4096).
+  // Only fall back to the implicit catalog value when the user omits the field.
+  if (explicitValue !== undefined && Number.isFinite(explicitValue) && explicitValue > 0) {
+    return explicitValue;
+  }
+  return implicitValue;
 }
 
 function mergeProviderModels(implicit: ProviderConfig, explicit: ProviderConfig): ProviderConfig {
@@ -63,10 +71,13 @@ function mergeProviderModels(implicit: ProviderConfig, explicit: ProviderConfig)
       input: implicitModel.input,
       reasoning: "reasoning" in explicitModel ? explicitModel.reasoning : implicitModel.reasoning,
       contextWindow: resolvePreferredTokenLimit(
-        explicitModel.contextWindow,
+        "contextWindow" in explicitModel ? explicitModel.contextWindow : undefined,
         implicitModel.contextWindow,
       ),
-      maxTokens: resolvePreferredTokenLimit(explicitModel.maxTokens, implicitModel.maxTokens),
+      maxTokens: resolvePreferredTokenLimit(
+        "maxTokens" in explicitModel ? explicitModel.maxTokens : undefined,
+        implicitModel.maxTokens,
+      ),
     };
   });
 

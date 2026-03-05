@@ -258,8 +258,10 @@ describe("models-config", () => {
         const kimi = parsed.providers.moonshot?.models?.find((model) => model.id === "kimi-k2.5");
         expect(kimi?.input).toEqual(["text", "image"]);
         expect(kimi?.reasoning).toBe(false);
-        expect(kimi?.contextWindow).toBe(256000);
-        expect(kimi?.maxTokens).toBe(8192);
+        // User explicitly set contextWindow/maxTokens — honour their values
+        // even when they are lower than the implicit catalog (fixes #35436).
+        expect(kimi?.contextWindow).toBe(1024);
+        expect(kimi?.maxTokens).toBe(256);
         // Preserve explicit user pricing overrides when refreshing capabilities.
         expect(kimi?.cost?.input).toBe(123);
         expect(kimi?.cost?.output).toBe(456);
