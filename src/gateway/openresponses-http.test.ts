@@ -661,3 +661,61 @@ describe("OpenResponses HTTP API (e2e)", () => {
     }
   });
 });
+
+describe("normalizeFlatToolDefinitions", () => {
+  it("converts Anthropic-style flat tools to OpenAI wrapped format", async () => {
+    const { normalizeFlatToolDefinitions } = await import("./openresponses-http.js");
+    const body = {
+      tools: [
+        {
+          name: "read",
+          description: "Read a file",
+          input_schema: { type: "object", properties: { path: { type: "string" } } },
+        },
+      ],
+    };
+    normalizeFlatToolDefinitions(body);
+    expect(body.tools[0]).toEqual({
+      type: "function",
+      function: {
+        name: "read",
+        description: "Read a file",
+        parameters: { type: "object", properties: { path: { type: "string" } } },
+      },
+    });
+  });
+
+  it("leaves already-wrapped tools unchanged", async () => {
+    const { normalizeFlatToolDefinitions } = await import("./openresponses-http.js");
+    const original = {
+      type: "function",
+      function: { name: "exec", description: "Run a command", parameters: {} },
+    };
+    const body = { tools: [{ ...original }] };
+    normalizeFlatToolDefinitions(body);
+    expect(body.tools[0]).toEqual(original);
+  });
+
+  it("handles mixed flat and wrapped tools", async () => {
+    const { normalizeFlatToolDefinitions } = await import("./openresponses-http.js");
+    const body = {
+      tools: [
+        { type: "function", function: { name: "a" } },
+        { name: "b", description: "flat tool", input_schema: { type: "object" } },
+      ],
+    };
+    normalizeFlatToolDefinitions(body);
+    expect((body.tools[0] as any).function.name).toBe("a");
+    expect((body.tools[1] as any).type).toBe("function");
+    expect((body.tools[1] as any).function.name).toBe("b");
+  });
+
+  it("uses parameters field when input_schema is absent", async () => {
+    const { normalizeFlatToolDefinitions } = await import("./openresponses-http.js");
+    const body = {
+      tools: [{ name: "tool", parameters: { type: "object" } }],
+    };
+    normalizeFlatToolDefinitions(body);
+    expect((body.tools[0] as any).function.parameters).toEqual({ type: "object" });
+  });
+});

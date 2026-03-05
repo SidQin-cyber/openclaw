@@ -201,7 +201,7 @@ export function toClientToolDefinitions(
   hookContext?: HookContext,
 ): ToolDefinition[] {
   return tools.map((tool) => {
-    const func = tool.function;
+    const func = tool.function ?? (tool as unknown as { name: string; description?: string; parameters?: Record<string, unknown> });
     return {
       name: func.name,
       label: func.name,

@@ -104,6 +104,34 @@ function resolveResponsesLimits(
   };
 }
 
+/**
+ * Some providers (e.g. Kimi, Anthropic relays) send tool definitions in flat
+ * format ({name, description, input_schema}) instead of the OpenAI wrapped
+ * format ({type:"function", function:{name, description, parameters}}).
+ * Normalize in-place before Zod validation so both formats are accepted.
+ */
+export function normalizeFlatToolDefinitions(body: unknown): void {
+  if (!body || typeof body !== "object") return;
+  const b = body as Record<string, unknown>;
+  if (!Array.isArray(b.tools)) return;
+  for (let i = 0; i < b.tools.length; i++) {
+    const tool = b.tools[i] as Record<string, unknown> | null;
+    if (!tool || typeof tool !== "object") continue;
+    if ("function" in tool) continue;
+    if (typeof tool.name !== "string") continue;
+    b.tools[i] = {
+      type: "function",
+      function: {
+        name: tool.name,
+        description: typeof tool.description === "string" ? tool.description : undefined,
+        parameters: (tool.input_schema ?? tool.parameters ?? undefined) as
+          | Record<string, unknown>
+          | undefined,
+      },
+    };
+  }
+}
+
 function extractClientTools(body: CreateResponseBody): ClientToolDefinition[] {
   return (body.tools ?? []) as ClientToolDefinition[];
 }
@@ -295,7 +323,8 @@ export async function handleOpenResponsesHttpRequest(
     return true;
   }
 
-  // Validate request body with Zod
+  normalizeFlatToolDefinitions(handled.body);
+
   const parseResult = CreateResponseBodySchema.safeParse(handled.body);
   if (!parseResult.success) {
     const issue = parseResult.error.issues[0];
