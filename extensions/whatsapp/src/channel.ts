@@ -253,7 +253,7 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
       return Array.from(actions);
     },
     supportsAction: ({ action }) => action === "react",
-    handleAction: async ({ action, params, cfg, accountId }) => {
+    handleAction: async ({ action, params, cfg, accountId, requesterSenderId }) => {
       if (action !== "react") {
         throw new Error(`Action ${action} is not supported for provider ${meta.id}.`);
       }
@@ -262,15 +262,20 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
       });
       const emoji = readStringParam(params, "emoji", { allowEmpty: true });
       const remove = typeof params.remove === "boolean" ? params.remove : undefined;
+      const chatJid =
+        readStringParam(params, "chatJid") ?? readStringParam(params, "to", { required: true });
+      const isGroup = chatJid.endsWith("@g.us");
+      const participant =
+        readStringParam(params, "participant") ??
+        (isGroup && requesterSenderId?.trim() ? requesterSenderId.trim() : undefined);
       return await getWhatsAppRuntime().channel.whatsapp.handleWhatsAppAction(
         {
           action: "react",
-          chatJid:
-            readStringParam(params, "chatJid") ?? readStringParam(params, "to", { required: true }),
+          chatJid,
           messageId,
           emoji,
           remove,
-          participant: readStringParam(params, "participant"),
+          participant,
           accountId: accountId ?? undefined,
           fromMe: typeof params.fromMe === "boolean" ? params.fromMe : undefined,
         },

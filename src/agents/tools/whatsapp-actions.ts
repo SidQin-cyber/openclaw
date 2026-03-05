@@ -7,6 +7,7 @@ import { resolveAuthorizedWhatsAppOutboundTarget } from "./whatsapp-target-auth.
 export async function handleWhatsAppAction(
   params: Record<string, unknown>,
   cfg: OpenClawConfig,
+  options?: { requesterSenderId?: string },
 ): Promise<AgentToolResult<unknown>> {
   const action = readStringParam(params, "action", { required: true });
   const isActionEnabled = createActionGate(cfg.channels?.whatsapp?.actions);
@@ -20,7 +21,12 @@ export async function handleWhatsAppAction(
     const { emoji, remove, isEmpty } = readReactionParams(params, {
       removeErrorMessage: "Emoji is required to remove a WhatsApp reaction.",
     });
-    const participant = readStringParam(params, "participant");
+    const isGroup = chatJid.endsWith("@g.us");
+    const participant =
+      readStringParam(params, "participant") ??
+      (isGroup && options?.requesterSenderId?.trim()
+        ? options.requesterSenderId.trim()
+        : undefined);
     const accountId = readStringParam(params, "accountId");
     const fromMeRaw = params.fromMe;
     const fromMe = typeof fromMeRaw === "boolean" ? fromMeRaw : undefined;
