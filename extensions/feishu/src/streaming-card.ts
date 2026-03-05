@@ -67,6 +67,13 @@ async function getToken(creds: Credentials): Promise<string> {
     policy: { allowedHostnames: resolveAllowedHostnames(creds.domain) },
     auditContext: "feishu.streaming-card.token",
   });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    await release();
+    throw new Error(
+      `Feishu token request failed: HTTP ${response.status} ${text || response.statusText}`,
+    );
+  }
   const data = (await response.json()) as {
     code: number;
     msg: string;
