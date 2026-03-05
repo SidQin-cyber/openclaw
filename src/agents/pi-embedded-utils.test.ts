@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractAssistantText,
   formatReasoningMessage,
+  promoteThinkingTagsToBlocks,
   stripDowngradedToolCallText,
 } from "./pi-embedded-utils.js";
 
@@ -546,6 +547,33 @@ describe("stripDowngradedToolCallText", () => {
     for (const testCase of cases) {
       expect(stripDowngradedToolCallText(testCase.text), testCase.name).toBe(testCase.expected);
     }
+  });
+});
+
+describe("promoteThinkingTagsToBlocks", () => {
+  it("does not crash on malformed null content entries", () => {
+    const msg = makeAssistantMessage({
+      content: [null as never, { type: "text", text: "<thinking>hello</thinking>ok" }],
+    });
+    expect(() => promoteThinkingTagsToBlocks(msg)).not.toThrow();
+    const types = msg.content.map((b: { type?: string }) => b?.type);
+    expect(types).toContain("thinking");
+    expect(types).toContain("text");
+  });
+
+  it("does not crash on undefined content entries", () => {
+    const msg = makeAssistantMessage({
+      content: [undefined as never, { type: "text", text: "no tags here" }],
+    });
+    expect(() => promoteThinkingTagsToBlocks(msg)).not.toThrow();
+  });
+
+  it("passes through well-formed content unchanged when no thinking tags", () => {
+    const msg = makeAssistantMessage({
+      content: [{ type: "text", text: "hello world" }],
+    });
+    promoteThinkingTagsToBlocks(msg);
+    expect(msg.content).toEqual([{ type: "text", text: "hello world" }]);
   });
 });
 
