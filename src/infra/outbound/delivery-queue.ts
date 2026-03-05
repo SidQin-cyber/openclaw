@@ -10,6 +10,9 @@ const QUEUE_DIRNAME = "delivery-queue";
 const FAILED_DIRNAME = "failed";
 const MAX_RETRIES = 5;
 
+/** Messages older than this are expired and moved to failed/ on recovery. Default: 24 hours. */
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 /** Backoff delays in milliseconds indexed by retry count (1-based). */
 const BACKOFF_MS: readonly number[] = [
   5_000, // retry 1: 5s
@@ -56,6 +59,7 @@ export type RecoverySummary = {
   failed: number;
   skippedMaxRetries: number;
   deferredBackoff: number;
+  expired: number;
 };
 
 function resolveQueueDir(stateDir?: string): string {
@@ -129,7 +133,10 @@ export async function failDelivery(id: string, error: string, stateDir?: string)
   const filePath = path.join(resolveQueueDir(stateDir), `${id}.json`);
   const raw = await fs.promises.readFile(filePath, "utf-8");
   const entry: QueuedDelivery = JSON.parse(raw);
-  entry.retryCount += 1;
+  const currentCount = typeof entry.retryCount === "number" && Number.isFinite(entry.retryCount)
+    ? entry.retryCount
+    : 0;
+  entry.retryCount = currentCount + 1;
   entry.lastAttemptAt = Date.now();
   entry.lastError = error;
   const tmp = `${filePath}.${process.pid}.tmp`;
@@ -234,19 +241,28 @@ function normalizeLegacyQueuedDeliveryEntry(entry: QueuedDelivery): {
   entry: QueuedDelivery;
   migrated: boolean;
 } {
-  const hasAttemptTimestamp =
-    typeof entry.lastAttemptAt === "number" &&
-    Number.isFinite(entry.lastAttemptAt) &&
-    entry.lastAttemptAt > 0;
-  if (hasAttemptTimestamp || entry.retryCount <= 0) {
-    return { entry, migrated: false };
+  let migrated = false;
+
+  if (typeof entry.retryCount !== "number" || !Number.isFinite(entry.retryCount)) {
+    entry = { ...entry, retryCount: 0 };
+    migrated = true;
   }
+
   const hasEnqueuedTimestamp =
     typeof entry.enqueuedAt === "number" &&
     Number.isFinite(entry.enqueuedAt) &&
     entry.enqueuedAt > 0;
   if (!hasEnqueuedTimestamp) {
-    return { entry, migrated: false };
+    entry = { ...entry, enqueuedAt: Date.now() };
+    migrated = true;
+  }
+
+  const hasAttemptTimestamp =
+    typeof entry.lastAttemptAt === "number" &&
+    Number.isFinite(entry.lastAttemptAt) &&
+    entry.lastAttemptAt > 0;
+  if (hasAttemptTimestamp || entry.retryCount <= 0) {
+    return { entry, migrated };
   }
   return {
     entry: {
@@ -285,7 +301,7 @@ export async function recoverPendingDeliveries(opts: {
 }): Promise<RecoverySummary> {
   const pending = await loadPendingDeliveries(opts.stateDir);
   if (pending.length === 0) {
-    return { recovered: 0, failed: 0, skippedMaxRetries: 0, deferredBackoff: 0 };
+    return { recovered: 0, failed: 0, skippedMaxRetries: 0, deferredBackoff: 0, expired: 0 };
   }
 
   // Process oldest first.
@@ -293,20 +309,46 @@ export async function recoverPendingDeliveries(opts: {
 
   opts.log.info(`Found ${pending.length} pending delivery entries — starting recovery`);
 
+  if (pending.length > 50) {
+    opts.log.warn(
+      `Delivery queue has ${pending.length} entries — consider investigating failed deliveries in ${resolveFailedDir(opts.stateDir)}/`,
+    );
+  }
+
   const deadline = Date.now() + (opts.maxRecoveryMs ?? 60_000);
 
   let recovered = 0;
   let failed = 0;
   let skippedMaxRetries = 0;
   let deferredBackoff = 0;
+  let expiredCount = 0;
 
   for (const entry of pending) {
     const now = Date.now();
     if (now >= deadline) {
-      const deferred = pending.length - recovered - failed - skippedMaxRetries - deferredBackoff;
+      const deferred = pending.length - recovered - failed - skippedMaxRetries - deferredBackoff - expiredCount;
       opts.log.warn(`Recovery time budget exceeded — ${deferred} entries deferred to next restart`);
       break;
     }
+
+    const hasValidEnqueuedAt =
+      typeof entry.enqueuedAt === "number" &&
+      Number.isFinite(entry.enqueuedAt) &&
+      entry.enqueuedAt > 0;
+    const entryAge = hasValidEnqueuedAt ? now - entry.enqueuedAt : 0;
+    if (entryAge > MAX_AGE_MS) {
+      opts.log.warn(
+        `Delivery ${entry.id} expired (age: ${Math.round(entryAge / 3600_000)}h) — moving to failed/`,
+      );
+      try {
+        await moveToFailed(entry.id, opts.stateDir);
+      } catch (err) {
+        opts.log.error(`Failed to move expired entry ${entry.id} to failed/: ${String(err)}`);
+      }
+      expiredCount += 1;
+      continue;
+    }
+
     if (entry.retryCount >= MAX_RETRIES) {
       opts.log.warn(
         `Delivery ${entry.id} exceeded max retries (${entry.retryCount}/${MAX_RETRIES}) — moving to failed/`,
@@ -370,12 +412,12 @@ export async function recoverPendingDeliveries(opts: {
   }
 
   opts.log.info(
-    `Delivery recovery complete: ${recovered} recovered, ${failed} failed, ${skippedMaxRetries} skipped (max retries), ${deferredBackoff} deferred (backoff)`,
+    `Delivery recovery complete: ${recovered} recovered, ${failed} failed, ${skippedMaxRetries} skipped (max retries), ${expiredCount} expired, ${deferredBackoff} deferred (backoff)`,
   );
-  return { recovered, failed, skippedMaxRetries, deferredBackoff };
+  return { recovered, failed, skippedMaxRetries, deferredBackoff, expired: expiredCount };
 }
 
-export { MAX_RETRIES };
+export { MAX_RETRIES, MAX_AGE_MS };
 
 const PERMANENT_ERROR_PATTERNS: readonly RegExp[] = [
   /no conversation reference found/i,
