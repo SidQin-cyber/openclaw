@@ -154,4 +154,29 @@ describe("failover-error", () => {
     expect(described.message).toBe("123");
     expect(described.reason).toBeUndefined();
   });
+
+  it("infers timeout from streaming server_error in Codex/Responses API format", () => {
+    expect(
+      resolveFailoverReasonFromError({
+        message:
+          'Codex error: {"type":"error","error":{"type":"server_error","code":"server_error","message":"An error occurred while processing your request.","param":null},"sequence_number":2}',
+      }),
+    ).toBe("timeout");
+  });
+
+  it("infers timeout from server_error keyword in error messages", () => {
+    expect(
+      resolveFailoverReasonFromError({
+        message: "LLM error server_error: something went wrong",
+      }),
+    ).toBe("timeout");
+  });
+
+  it("infers timeout from OpenAI WebSocket response.failed with server_error type", () => {
+    expect(
+      resolveFailoverReasonFromError({
+        message: 'OpenAI WebSocket response failed: {"type":"server_error","message":"Internal error"}',
+      }),
+    ).toBe("timeout");
+  });
 });

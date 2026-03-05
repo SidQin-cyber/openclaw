@@ -662,6 +662,26 @@ function isJsonApiInternalServerError(raw: string): boolean {
   return value.includes('"type":"api_error"') && value.includes("internal server error");
 }
 
+export function isStreamingProviderServerError(raw: string): boolean {
+  if (!raw) {
+    return false;
+  }
+  const value = raw.toLowerCase();
+  // Codex/OpenAI Responses API returns streaming error events like:
+  // {"type":"error","error":{"type":"server_error","code":"server_error",...}}
+  // which are formatted as 'Codex error: {...}' or
+  // 'OpenAI WebSocket response failed: ...' by upstream handlers.
+  if (value.includes('"type":"server_error"') || value.includes('"code":"server_error"')) {
+    return true;
+  }
+  // Also match "server_error" as a standalone token from providers that
+  // surface the error type directly in the message.
+  if (/\bserver_error\b/.test(value)) {
+    return true;
+  }
+  return false;
+}
+
 export function parseImageDimensionError(raw: string): {
   maxDimensionPx?: number;
   messageIndex?: number;
@@ -795,6 +815,9 @@ export function classifyFailoverReason(raw: string): FailoverReason | null {
     return "timeout";
   }
   if (isJsonApiInternalServerError(raw)) {
+    return "timeout";
+  }
+  if (isStreamingProviderServerError(raw)) {
     return "timeout";
   }
   if (isRateLimitErrorMessage(raw)) {
