@@ -65,6 +65,14 @@ Example:
 
 Reference: [/tools/plugin#distribution-npm](/tools/plugin#distribution-npm)
 
+## docs.openclaw.ai shows an SSL error (Comcast/Xfinity)
+
+Some Comcast/Xfinity connections block `docs.openclaw.ai` via Xfinity Advanced Security.
+Disable Advanced Security or allowlist `docs.openclaw.ai`, then retry.
+
+- Xfinity Advanced Security help: https://www.xfinity.com/support/articles/using-xfinity-xfi-advanced-security
+- Quick check: try a mobile hotspot or VPN to confirm this is ISP-level filtering
+
 ## Decision tree
 
 ```mermaid
