@@ -198,6 +198,12 @@ function buildSendSchema(options: {
     quoteText: Type.Optional(
       Type.String({ description: "Quote text for Telegram reply_parameters" }),
     ),
+    linkPreview: Type.Optional(
+      Type.Boolean({
+        description:
+          "Controls whether URL link previews are shown (Telegram). Overrides account-level default.",
+      }),
+    ),
     bestEffort: Type.Optional(Type.Boolean()),
     gifPlayback: Type.Optional(Type.Boolean()),
     buttons: Type.Optional(

@@ -240,6 +240,7 @@ export async function handleTelegramAction(
       quoteText: quoteText ?? undefined,
       asVoice: typeof params.asVoice === "boolean" ? params.asVoice : undefined,
       silent: typeof params.silent === "boolean" ? params.silent : undefined,
+      linkPreview: typeof params.linkPreview === "boolean" ? params.linkPreview : undefined,
     });
     return jsonResult({
       ok: true,
