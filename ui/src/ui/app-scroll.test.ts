@@ -5,6 +5,30 @@ import { handleChatScroll, scheduleChatScroll, resetChatScroll } from "./app-scr
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+function ensureWindow() {
+  if (typeof globalThis.window === "undefined") {
+    (globalThis as Record<string, unknown>).window = globalThis;
+  }
+  if (typeof globalThis.document === "undefined") {
+    (globalThis as Record<string, unknown>).document = {
+      scrollingElement: null,
+      documentElement: { scrollHeight: 0, scrollTop: 0, clientHeight: 0 },
+    };
+  }
+  if (typeof globalThis.getComputedStyle === "undefined") {
+    (globalThis as Record<string, unknown>).getComputedStyle = () => ({});
+  }
+  if (typeof globalThis.requestAnimationFrame === "undefined") {
+    (globalThis as Record<string, unknown>).requestAnimationFrame = (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    };
+  }
+  if (typeof globalThis.cancelAnimationFrame === "undefined") {
+    (globalThis as Record<string, unknown>).cancelAnimationFrame = () => {};
+  }
+}
+
 /** Minimal ScrollHost stub for unit tests. */
 function createScrollHost(
   overrides: {
@@ -14,6 +38,8 @@ function createScrollHost(
     overflowY?: string;
   } = {},
 ) {
+  ensureWindow();
+
   const {
     scrollHeight = 2000,
     scrollTop = 1500,
@@ -25,11 +51,13 @@ function createScrollHost(
     scrollHeight,
     scrollTop,
     clientHeight,
+    scrollTo: vi.fn(({ top }: { top: number }) => {
+      container.scrollTop = top;
+    }),
     style: { overflowY } as unknown as CSSStyleDeclaration,
   };
 
-  // Make getComputedStyle return the overflowY value
-  vi.spyOn(window, "getComputedStyle").mockReturnValue({
+  vi.spyOn(globalThis, "getComputedStyle").mockReturnValue({
     overflowY,
   } as unknown as CSSStyleDeclaration);
 
@@ -61,7 +89,7 @@ function createScrollEvent(scrollHeight: number, scrollTop: number, clientHeight
 /* ------------------------------------------------------------------ */
 
 describe("handleChatScroll", () => {
-  it("sets chatUserNearBottom=true when within the 450px threshold", () => {
+  it("sets chatUserNearBottom=true when within the 150px threshold", () => {
     const { host } = createScrollHost({});
     // distanceFromBottom = 2000 - 1600 - 400 = 0 → clearly near bottom
     const event = createScrollEvent(2000, 1600, 400);
@@ -71,16 +99,16 @@ describe("handleChatScroll", () => {
 
   it("sets chatUserNearBottom=true when distance is just under threshold", () => {
     const { host } = createScrollHost({});
-    // distanceFromBottom = 2000 - 1151 - 400 = 449 → just under threshold
-    const event = createScrollEvent(2000, 1151, 400);
+    // distanceFromBottom = 2000 - 1451 - 400 = 149 → just under 150px threshold
+    const event = createScrollEvent(2000, 1451, 400);
     handleChatScroll(host, event);
     expect(host.chatUserNearBottom).toBe(true);
   });
 
   it("sets chatUserNearBottom=false when distance is exactly at threshold", () => {
     const { host } = createScrollHost({});
-    // distanceFromBottom = 2000 - 1150 - 400 = 450 → at threshold (uses strict <)
-    const event = createScrollEvent(2000, 1150, 400);
+    // distanceFromBottom = 2000 - 1450 - 400 = 150 → at threshold (uses strict <)
+    const event = createScrollEvent(2000, 1450, 400);
     handleChatScroll(host, event);
     expect(host.chatUserNearBottom).toBe(false);
   });
@@ -93,11 +121,10 @@ describe("handleChatScroll", () => {
     expect(host.chatUserNearBottom).toBe(false);
   });
 
-  it("sets chatUserNearBottom=false when user scrolled up past one long message (>200px <450px)", () => {
+  it("sets chatUserNearBottom=false when user scrolled up past threshold", () => {
     const { host } = createScrollHost({});
-    // distanceFromBottom = 2000 - 1250 - 400 = 350 → old threshold would say "near", new says "near"
-    // distanceFromBottom = 2000 - 1100 - 400 = 500 → old threshold would say "not near", new also "not near"
-    const event = createScrollEvent(2000, 1100, 400);
+    // distanceFromBottom = 2000 - 1250 - 400 = 350 → well above 150px threshold
+    const event = createScrollEvent(2000, 1250, 400);
     handleChatScroll(host, event);
     expect(host.chatUserNearBottom).toBe(false);
   });
@@ -109,8 +136,9 @@ describe("handleChatScroll", () => {
 
 describe("scheduleChatScroll", () => {
   beforeEach(() => {
+    ensureWindow();
     vi.useFakeTimers();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb: FrameRequestCallback) => {
       cb(0);
       return 1;
     });
@@ -158,15 +186,13 @@ describe("scheduleChatScroll", () => {
       scrollTop: 500,
       clientHeight: 400,
     });
-    // User has scrolled up — chatUserNearBottom is false
     host.chatUserNearBottom = false;
-    host.chatHasAutoScrolled = true; // Already past initial load
+    host.chatHasAutoScrolled = true;
     const originalScrollTop = container.scrollTop;
 
     scheduleChatScroll(host, true);
     await host.updateComplete;
 
-    // force=true should still NOT override explicit user scroll-up after initial load
     expect(container.scrollTop).toBe(originalScrollTop);
   });
 
@@ -177,12 +203,11 @@ describe("scheduleChatScroll", () => {
       clientHeight: 400,
     });
     host.chatUserNearBottom = false;
-    host.chatHasAutoScrolled = false; // Initial load
+    host.chatHasAutoScrolled = false;
 
     scheduleChatScroll(host, true);
     await host.updateComplete;
 
-    // On initial load, force should work regardless
     expect(container.scrollTop).toBe(container.scrollHeight);
   });
 
@@ -209,8 +234,9 @@ describe("scheduleChatScroll", () => {
 
 describe("streaming scroll behavior", () => {
   beforeEach(() => {
+    ensureWindow();
     vi.useFakeTimers();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb: FrameRequestCallback) => {
       cb(0);
       return 1;
     });
