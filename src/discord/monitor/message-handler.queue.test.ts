@@ -516,4 +516,43 @@ describe("createDiscordMessageHandler queue behavior", () => {
       );
     });
   });
+
+  it("deduplicates messages with the same message ID", async () => {
+    processDiscordMessageMock.mockReset();
+    preflightDiscordMessageMock.mockReset();
+    processDiscordMessageMock.mockImplementation(async () => undefined);
+    preflightDiscordMessageMock.mockImplementation(
+      async (params: { data: { channel_id: string } }) =>
+        createPreflightContext(params.data.channel_id),
+    );
+
+    const handler = createDiscordMessageHandler(createHandlerParams());
+    const msgData = createMessageData("dup-msg-1");
+
+    await handler(msgData as never, {} as never);
+    await handler(msgData as never, {} as never);
+
+    await vi.waitFor(() => {
+      expect(preflightDiscordMessageMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("allows different message IDs through", async () => {
+    processDiscordMessageMock.mockReset();
+    preflightDiscordMessageMock.mockReset();
+    processDiscordMessageMock.mockImplementation(async () => undefined);
+    preflightDiscordMessageMock.mockImplementation(
+      async (params: { data: { channel_id: string } }) =>
+        createPreflightContext(params.data.channel_id),
+    );
+
+    const handler = createDiscordMessageHandler(createHandlerParams());
+
+    await handler(createMessageData("unique-1") as never, {} as never);
+    await handler(createMessageData("unique-2") as never, {} as never);
+
+    await vi.waitFor(() => {
+      expect(preflightDiscordMessageMock).toHaveBeenCalledTimes(2);
+    });
+  });
 });

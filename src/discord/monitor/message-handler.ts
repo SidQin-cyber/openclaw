@@ -17,6 +17,30 @@ import {
 } from "./message-utils.js";
 import type { DiscordMonitorStatusSink } from "./status.js";
 
+const DEDUP_TTL_MS = 10_000;
+const DEDUP_MAX_SIZE = 500;
+
+function createMessageDedup() {
+  const seen = new Map<string, number>();
+  return {
+    isDuplicate(messageId: string): boolean {
+      const now = Date.now();
+      if (seen.has(messageId)) {
+        return true;
+      }
+      seen.set(messageId, now);
+      if (seen.size > DEDUP_MAX_SIZE) {
+        for (const [id, ts] of seen) {
+          if (now - ts > DEDUP_TTL_MS) {
+            seen.delete(id);
+          }
+        }
+      }
+      return false;
+    },
+  };
+}
+
 type DiscordMessageHandlerParams = Omit<
   DiscordMessagePreflightParams,
   "ackReactionScope" | "groupPolicy" | "data" | "client"
@@ -159,6 +183,8 @@ export function createDiscordMessageHandler(
     },
   });
 
+  const dedup = createMessageDedup();
+
   const handler: DiscordMessageHandlerWithLifecycle = async (data, client, options) => {
     try {
       if (options?.abortSignal?.aborted) {
@@ -171,6 +197,11 @@ export function createDiscordMessageHandler(
       // slowdown (see #15874).
       const msgAuthorId = data.message?.author?.id ?? data.author?.id;
       if (params.botUserId && msgAuthorId === params.botUserId) {
+        return;
+      }
+
+      const messageId = data.message?.id;
+      if (messageId && dedup.isDuplicate(messageId)) {
         return;
       }
 
