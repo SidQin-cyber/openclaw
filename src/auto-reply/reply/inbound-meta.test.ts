@@ -85,6 +85,21 @@ describe("buildInboundMetaSystemPrompt", () => {
     expect(payload["flags"]).toBeUndefined();
   });
 
+  it("uses webchat channel for TUI even when OriginatingChannel is telegram", () => {
+    const prompt = buildInboundMetaSystemPrompt({
+      OriginatingTo: "telegram:123",
+      OriginatingChannel: "telegram",
+      Provider: "webchat",
+      Surface: "webchat",
+      ChatType: "direct",
+    } as TemplateContext);
+
+    const payload = parseInboundMetaPayload(prompt);
+    expect(payload["channel"]).toBe("webchat");
+    expect(payload["provider"]).toBe("webchat");
+    expect(payload["surface"]).toBe("webchat");
+  });
+
   it("omits sender_id when blank", () => {
     const prompt = buildInboundMetaSystemPrompt({
       MessageSid: "458",

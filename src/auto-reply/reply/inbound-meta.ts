@@ -32,10 +32,18 @@ function formatConversationTimestamp(value: unknown): string | undefined {
 }
 
 function resolveInboundChannel(ctx: TemplateContext): string | undefined {
-  let channelValue = safeTrim(ctx.OriginatingChannel) ?? safeTrim(ctx.Surface);
+  const provider = safeTrim(ctx.Provider);
+  const surface = safeTrim(ctx.Surface);
+  // For webchat/TUI sessions, the channel must reflect the actual message
+  // source, not the delivery route. OriginatingChannel can inherit an
+  // external channel (e.g. "telegram") from channel-scoped sessions,
+  // causing cross-delivery when used as the inbound channel tag. See #37874.
+  if (provider === "webchat" || surface === "webchat") {
+    return "webchat";
+  }
+  let channelValue = safeTrim(ctx.OriginatingChannel) ?? surface;
   if (!channelValue) {
-    const provider = safeTrim(ctx.Provider);
-    if (provider !== "webchat" && ctx.Surface !== "webchat") {
+    if (provider && provider !== "webchat") {
       channelValue = provider;
     }
   }
