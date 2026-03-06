@@ -93,6 +93,24 @@ export function isNonRecoverableSlackAuthError(error: unknown): boolean {
   return SLACK_AUTH_ERROR_RE.test(msg);
 }
 
+/**
+ * Disable Bolt's SocketModeClient auto-reconnect so OpenClaw's outer loop
+ * with exponential backoff is the sole retry mechanism.  The SocketModeClient
+ * defaults to `autoReconnectEnabled: true` with a tight ~1.5 s retry interval
+ * and no backoff, which floods logs and degrades other channels.
+ */
+export function disableBoltAutoReconnect(app: unknown): void {
+  const emitter = getSocketEmitter(app);
+  if (!emitter) {
+    return;
+  }
+  const receiver = (app as { receiver?: { client?: Record<string, unknown> } }).receiver;
+  const client = receiver?.client;
+  if (client && typeof client.autoReconnectEnabled === "boolean") {
+    client.autoReconnectEnabled = false;
+  }
+}
+
 export function formatUnknownError(error: unknown): string {
   if (error instanceof Error) {
     return error.message;

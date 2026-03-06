@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { __testing } from "./provider.js";
+import { disableBoltAutoReconnect } from "./reconnect-policy.js";
 
 class FakeEmitter {
   private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -55,5 +56,28 @@ describe("slack socket reconnect helpers", () => {
       event: "unable_to_socket_mode_start",
       error: err,
     });
+  });
+});
+
+describe("disableBoltAutoReconnect", () => {
+  it("sets autoReconnectEnabled to false on the socket mode client", () => {
+    const client = new FakeEmitter() as FakeEmitter & { autoReconnectEnabled: boolean };
+    client.autoReconnectEnabled = true;
+    const app = { receiver: { client } };
+
+    disableBoltAutoReconnect(app);
+
+    expect(client.autoReconnectEnabled).toBe(false);
+  });
+
+  it("does nothing when app has no socket mode client", () => {
+    const app = {};
+    expect(() => disableBoltAutoReconnect(app)).not.toThrow();
+  });
+
+  it("does nothing when client has no autoReconnectEnabled property", () => {
+    const client = new FakeEmitter();
+    const app = { receiver: { client } };
+    expect(() => disableBoltAutoReconnect(app)).not.toThrow();
   });
 });

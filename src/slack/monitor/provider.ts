@@ -35,6 +35,7 @@ import { createSlackMonitorContext } from "./context.js";
 import { registerSlackMonitorEvents } from "./events.js";
 import { createSlackMessageHandler } from "./message-handler.js";
 import {
+  disableBoltAutoReconnect,
   formatUnknownError,
   getSocketEmitter,
   isNonRecoverableSlackAuthError,
@@ -178,6 +179,7 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
           clientOptions,
         },
   );
+  disableBoltAutoReconnect(app);
   const slackHttpHandler =
     slackMode === "http" && receiver
       ? async (req: IncomingMessage, res: ServerResponse) => {
