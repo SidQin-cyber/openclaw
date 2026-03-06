@@ -54,6 +54,26 @@ describe("fetchRemoteMedia", () => {
     ).rejects.toThrow("exceeds maxBytes");
   });
 
+  it("rejects null placeholder response", async () => {
+    const lookupFn = vi.fn(async () => [
+      { address: "93.184.216.34", family: 4 },
+    ]) as unknown as LookupFn;
+    const fetchImpl = async () =>
+      new Response("null", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+
+    await expect(
+      fetchRemoteMedia({
+        url: "https://cdn.discordapp.com/attachments/file.pdf",
+        fetchImpl,
+        maxBytes: 1024 * 1024,
+        lookupFn,
+      }),
+    ).rejects.toThrow("null placeholder");
+  });
+
   it("blocks private IP literals before fetching", async () => {
     const fetchImpl = vi.fn();
     await expect(

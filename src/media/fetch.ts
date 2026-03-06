@@ -79,6 +79,12 @@ async function readErrorBodySnippet(res: Response, maxChars = 200): Promise<stri
   }
 }
 
+const NULL_LITERAL = Buffer.from("null", "utf8");
+
+function isNullPlaceholderResponse(buffer: Buffer): boolean {
+  return buffer.length <= NULL_LITERAL.length && buffer.equals(NULL_LITERAL);
+}
+
 export async function fetchRemoteMedia(options: FetchMediaOptions): Promise<FetchMediaResult> {
   const {
     url,
@@ -151,6 +157,14 @@ export async function fetchRemoteMedia(options: FetchMediaOptions): Promise<Fetc
             ),
         })
       : Buffer.from(await res.arrayBuffer());
+
+    if (isNullPlaceholderResponse(buffer)) {
+      throw new MediaFetchError(
+        "fetch_failed",
+        `Failed to fetch media from ${url}: received null placeholder response (${buffer.byteLength} bytes)`,
+      );
+    }
+
     let fileNameFromUrl: string | undefined;
     try {
       const parsed = new URL(finalUrl);
