@@ -15,6 +15,7 @@ const {
   resolveKimiModel,
   resolveKimiBaseUrl,
   extractKimiCitations,
+  isOpenRouterApiKey,
 } = __testing;
 
 describe("web_search brave language param normalization", () => {
@@ -269,5 +270,18 @@ describe("extractKimiCitations", () => {
         ],
       }).toSorted(),
     ).toEqual(["https://example.com/a", "https://example.com/b", "https://example.com/c"]);
+  });
+});
+
+describe("isOpenRouterApiKey", () => {
+  it("detects OpenRouter API keys by sk-or- prefix", () => {
+    expect(isOpenRouterApiKey("sk-or-v1-abc123")).toBe(true);
+    expect(isOpenRouterApiKey("sk-or-test")).toBe(true);
+  });
+
+  it("rejects non-OpenRouter API keys", () => {
+    expect(isOpenRouterApiKey("pplx-abc123")).toBe(false);
+    expect(isOpenRouterApiKey("sk-abc123")).toBe(false);
+    expect(isOpenRouterApiKey("")).toBe(false);
   });
 });

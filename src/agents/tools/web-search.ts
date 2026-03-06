@@ -522,6 +522,10 @@ function normalizeApiKey(key: unknown): string {
   return normalizeSecretInput(key);
 }
 
+function isOpenRouterApiKey(key: string): boolean {
+  return key.startsWith("sk-or-");
+}
+
 function resolveGrokConfig(search?: WebSearchConfig): GrokConfig {
   if (!search || typeof search !== "object") {
     return {};
@@ -1435,6 +1439,16 @@ export function createWebSearchTool(options?: {
       if (!apiKey) {
         return jsonResult(missingSearchKeyPayload(provider));
       }
+      if (provider === "perplexity" && isOpenRouterApiKey(apiKey)) {
+        return jsonResult({
+          error: "incompatible_api_key",
+          message:
+            "Perplexity Search API requires a native Perplexity API key (pplx-*). " +
+            "OpenRouter API keys (sk-or-*) are not compatible with the Perplexity Search endpoint. " +
+            "Get a Perplexity API key at https://www.perplexity.ai/settings/api",
+          docs: "https://docs.openclaw.ai/tools/web",
+        });
+      }
       const params = args as Record<string, unknown>;
       const query = readStringParam(params, "query", { required: true });
       const count =
@@ -1620,4 +1634,5 @@ export const __testing = {
   resolveKimiBaseUrl,
   extractKimiCitations,
   resolveRedirectUrl: resolveCitationRedirectUrl,
+  isOpenRouterApiKey,
 } as const;
