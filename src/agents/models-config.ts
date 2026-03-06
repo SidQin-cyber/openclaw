@@ -16,10 +16,18 @@ type ModelsConfig = NonNullable<OpenClawConfig["models"]>;
 
 const DEFAULT_MODE: NonNullable<ModelsConfig["mode"]> = "merge";
 
-function resolvePreferredTokenLimit(explicitValue: number, implicitValue: number): number {
-  // Keep catalog refresh behavior for stale low values while preserving
-  // intentional larger user overrides (for example Ollama >128k contexts).
-  return explicitValue > implicitValue ? explicitValue : implicitValue;
+function resolvePreferredTokenLimit(
+  explicitValue: number | undefined,
+  implicitValue: number,
+  explicitlySet: boolean,
+): number {
+  if (explicitlySet && typeof explicitValue === "number" && explicitValue > 0) {
+    return explicitValue;
+  }
+  if (typeof explicitValue === "number" && explicitValue > implicitValue) {
+    return explicitValue;
+  }
+  return implicitValue;
 }
 
 function mergeProviderModels(implicit: ProviderConfig, explicit: ProviderConfig): ProviderConfig {
@@ -54,10 +62,10 @@ function mergeProviderModels(implicit: ProviderConfig, explicit: ProviderConfig)
 
     // Refresh capability metadata from the implicit catalog while preserving
     // user-specific fields (cost, headers, compat, etc.) on explicit entries.
-    // reasoning is treated as user-overridable: if the user has explicitly set
-    // it in their config (key present), honour that value; otherwise fall back
-    // to the built-in catalog default so new reasoning models work out of the
-    // box without requiring every user to configure it.
+    // reasoning, contextWindow, and maxTokens are user-overridable: if the
+    // user has explicitly set them in their config (key present), honour
+    // that value; otherwise fall back to the built-in catalog default so
+    // discovered models work out of the box.
     return {
       ...explicitModel,
       input: implicitModel.input,
@@ -65,8 +73,13 @@ function mergeProviderModels(implicit: ProviderConfig, explicit: ProviderConfig)
       contextWindow: resolvePreferredTokenLimit(
         explicitModel.contextWindow,
         implicitModel.contextWindow,
+        "contextWindow" in explicitModel,
       ),
-      maxTokens: resolvePreferredTokenLimit(explicitModel.maxTokens, implicitModel.maxTokens),
+      maxTokens: resolvePreferredTokenLimit(
+        explicitModel.maxTokens,
+        implicitModel.maxTokens,
+        "maxTokens" in explicitModel,
+      ),
     };
   });
 
