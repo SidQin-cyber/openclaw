@@ -914,9 +914,10 @@ export const chatHandlers: GatewayRequestHandlers = {
         typeof routeToCandidate === "string" &&
         routeToCandidate.trim().length > 0,
       );
-      const originatingChannel = hasDeliverableRoute
-        ? routeChannelCandidate
-        : INTERNAL_MESSAGE_CHANNEL;
+      const originatingChannel =
+        isFromWebchatClient || !hasDeliverableRoute
+          ? INTERNAL_MESSAGE_CHANNEL
+          : routeChannelCandidate;
       const originatingTo = hasDeliverableRoute ? routeToCandidate : undefined;
       const accountId = hasDeliverableRoute ? routeAccountIdCandidate : undefined;
       const messageThreadId = hasDeliverableRoute ? routeThreadIdCandidate : undefined;

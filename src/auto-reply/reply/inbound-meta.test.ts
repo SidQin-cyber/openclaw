@@ -85,6 +85,21 @@ describe("buildInboundMetaSystemPrompt", () => {
     expect(payload["flags"]).toBeUndefined();
   });
 
+  it("uses webchat channel for control-ui sessions instead of inherited external channel", () => {
+    const prompt = buildInboundMetaSystemPrompt({
+      SenderId: "openclaw-control-ui",
+      OriginatingTo: undefined,
+      OriginatingChannel: "webchat",
+      Provider: "webchat",
+      Surface: "webchat",
+      ChatType: "direct",
+    } as TemplateContext);
+
+    const payload = parseInboundMetaPayload(prompt);
+    expect(payload["channel"]).toBe("webchat");
+    expect(payload["channel"]).not.toBe("slack");
+  });
+
   it("omits sender_id when blank", () => {
     const prompt = buildInboundMetaSystemPrompt({
       MessageSid: "458",
