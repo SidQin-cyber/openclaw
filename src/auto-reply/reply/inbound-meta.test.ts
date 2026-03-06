@@ -47,6 +47,20 @@ describe("buildInboundMetaSystemPrompt", () => {
     expect(payload["channel"]).toBe("telegram");
   });
 
+  it("resolves channel as webchat when sender is openclaw-control-ui", () => {
+    const prompt = buildInboundMetaSystemPrompt({
+      SenderId: "openclaw-control-ui",
+      OriginatingTo: "agent:main:slack:channel:C123",
+      OriginatingChannel: "slack",
+      Provider: "webchat",
+      Surface: "webchat",
+      ChatType: "direct",
+    } as TemplateContext);
+
+    const payload = parseInboundMetaPayload(prompt);
+    expect(payload["channel"]).toBe("webchat");
+  });
+
   it("does not include per-turn message identifiers (cache stability)", () => {
     const prompt = buildInboundMetaSystemPrompt({
       MessageSid: "123",

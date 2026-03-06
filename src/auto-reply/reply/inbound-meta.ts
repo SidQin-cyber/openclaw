@@ -32,6 +32,9 @@ function formatConversationTimestamp(value: unknown): string | undefined {
 }
 
 function resolveInboundChannel(ctx: TemplateContext): string | undefined {
+  if (safeTrim(ctx.SenderId) === "openclaw-control-ui") {
+    return "webchat";
+  }
   let channelValue = safeTrim(ctx.OriginatingChannel) ?? safeTrim(ctx.Surface);
   if (!channelValue) {
     const provider = safeTrim(ctx.Provider);
