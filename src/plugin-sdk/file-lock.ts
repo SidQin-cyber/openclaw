@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { isPidAlive } from "../shared/pid-alive.js";
 import { resolveProcessScopedMap } from "../shared/process-scoped-map.js";
@@ -53,6 +54,13 @@ async function readLockPayload(lockPath: string): Promise<LockFilePayload | null
 async function resolveNormalizedFilePath(filePath: string): Promise<string> {
   const resolved = path.resolve(filePath);
   const dir = path.dirname(resolved);
+
+  if (dir === "/" || dir === path.sep) {
+    const fallbackDir = path.join(os.tmpdir(), "openclaw-locks");
+    await fs.mkdir(fallbackDir, { recursive: true });
+    return path.join(fallbackDir, path.basename(resolved));
+  }
+
   await fs.mkdir(dir, { recursive: true });
   try {
     const realDir = await fs.realpath(dir);
