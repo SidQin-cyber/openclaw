@@ -1,4 +1,5 @@
 import type { Message, ReactionTypeEmoji } from "@grammyjs/types";
+import { cacheTopicName } from "./topic-name-cache.js";
 import { resolveAgentDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
 import {
   createInboundDebouncer,
@@ -68,6 +69,20 @@ import {
 } from "./model-buttons.js";
 import { buildInlineKeyboard } from "./send.js";
 import { wasSentByBot } from "./sent-message-cache.js";
+
+function maybeRecordTopicName(msg: Message): void {
+  const chatId = msg.chat.id;
+  const raw = msg as unknown as Record<string, unknown>;
+  const created = raw.forum_topic_created as { name?: string } | undefined;
+  if (created?.name && msg.message_thread_id != null) {
+    cacheTopicName(chatId, msg.message_thread_id, created.name);
+    return;
+  }
+  const edited = raw.forum_topic_edited as { name?: string } | undefined;
+  if (edited?.name && msg.message_thread_id != null) {
+    cacheTopicName(chatId, msg.message_thread_id, edited.name);
+  }
+}
 
 function isMediaSizeLimitError(err: unknown): boolean {
   const errMsg = String(err);
@@ -1470,6 +1485,7 @@ export const registerTelegramHandlers = ({
     if (!msg) {
       return;
     }
+    maybeRecordTopicName(msg);
     await handleInboundMessageLike({
       ctxForDedupe: ctx,
       ctx: buildSyntheticContext(ctx, msg),

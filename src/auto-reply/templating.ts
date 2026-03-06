@@ -144,6 +144,8 @@ export type MsgContext = {
   MessageThreadId?: string | number;
   /** Telegram forum supergroup marker. */
   IsForum?: boolean;
+  /** Telegram forum topic display name (cached from forum_topic_created/edited events). */
+  MessageTopicName?: string;
   /** Warning: DM has topics enabled but this message is not in a topic. */
   TopicRequiredButMissing?: boolean;
   /**

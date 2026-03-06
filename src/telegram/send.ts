@@ -21,6 +21,7 @@ import { isGifMedia, kindFromMime } from "../media/mime.js";
 import { normalizePollInput, type PollInput } from "../polls.js";
 import { loadWebMedia } from "../web/media.js";
 import { type ResolvedTelegramAccount, resolveTelegramAccount } from "./accounts.js";
+import { cacheTopicName } from "./topic-name-cache.js";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import { buildTelegramThreadParams } from "./bot/helpers.js";
 import type { TelegramInlineButtons } from "./button-types.js";
@@ -1246,6 +1247,8 @@ export async function createForumTopicTelegram(
     accountId: account.accountId,
     direction: "outbound",
   });
+
+  cacheTopicName(normalizedChatId, topicId, result.name ?? trimmedName);
 
   return {
     topicId,

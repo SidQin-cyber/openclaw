@@ -1,4 +1,5 @@
 import type { Bot } from "grammy";
+import { getTopicName } from "./topic-name-cache.js";
 import {
   ensureConfiguredAcpRouteReady,
   resolveConfiguredAcpRoute,
@@ -856,6 +857,10 @@ export const buildTelegramMessageContext = async ({
     // For groups: use resolved forum topic id; for DMs: use raw messageThreadId
     MessageThreadId: threadSpec.id,
     IsForum: isForum,
+    MessageTopicName:
+      isForum && typeof messageThreadId === "number"
+        ? getTopicName(chatId, messageThreadId)
+        : undefined,
     // Originating channel for reply routing.
     OriginatingChannel: "telegram" as const,
     OriginatingTo: `telegram:${chatId}`,
