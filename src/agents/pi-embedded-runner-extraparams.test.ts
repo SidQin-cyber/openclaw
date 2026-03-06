@@ -1353,3 +1353,46 @@ describe("applyExtraParamsToAgent", () => {
     },
   );
 });
+
+describe("parallel_tool_calls wrapper", () => {
+  function capturePayload(provider: string, modelId: string, paramValue: boolean) {
+    let captured: Record<string, unknown> = {};
+    const fakeStreamFn: StreamFn = (_model, _context, options) => {
+      options?.onPayload?.(captured);
+      return undefined as never;
+    };
+    const agent = { streamFn: fakeStreamFn };
+    applyExtraParamsToAgent(
+      agent,
+      {
+        agents: {
+          defaults: {
+            models: {
+              [`${provider}/${modelId}`]: {
+                params: { parallel_tool_calls: paramValue },
+              },
+            },
+          },
+        },
+      },
+      provider,
+      modelId,
+    );
+    void agent.streamFn(
+      { api: "openai-completions", provider, id: modelId } as Model<"openai-completions">,
+      {} as Context,
+      {},
+    );
+    return captured;
+  }
+
+  it("injects parallel_tool_calls=false when configured", () => {
+    const payload = capturePayload("nvidia-nim", "moonshotai/kimi-k2.5", false);
+    expect(payload.parallel_tool_calls).toBe(false);
+  });
+
+  it("injects parallel_tool_calls=true when configured", () => {
+    const payload = capturePayload("openai", "gpt-4", true);
+    expect(payload.parallel_tool_calls).toBe(true);
+  });
+});

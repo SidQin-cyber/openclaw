@@ -963,6 +963,25 @@ function createZaiToolStreamWrapper(
   };
 }
 
+function createParallelToolCallsWrapper(
+  baseStreamFn: StreamFn | undefined,
+  parallelToolCalls: boolean,
+): StreamFn {
+  const underlying = baseStreamFn ?? streamSimple;
+  return (model, context, options) => {
+    const originalOnPayload = options?.onPayload;
+    return underlying(model, context, {
+      ...options,
+      onPayload: (payload) => {
+        if (payload && typeof payload === "object") {
+          (payload as Record<string, unknown>).parallel_tool_calls = parallelToolCalls;
+        }
+        originalOnPayload?.(payload);
+      },
+    });
+  };
+}
+
 /**
  * Apply extra params (like temperature) to an agent's streamFn.
  * Also adds OpenRouter app attribution headers when using the OpenRouter provider.
@@ -1067,6 +1086,13 @@ export function applyExtraParamsToAgent(
       log.debug(`enabling Z.AI tool_stream for ${provider}/${modelId}`);
       agent.streamFn = createZaiToolStreamWrapper(agent.streamFn, true);
     }
+  }
+
+  if (typeof merged?.parallel_tool_calls === "boolean") {
+    log.debug(
+      `applying parallel_tool_calls=${merged.parallel_tool_calls} for ${provider}/${modelId}`,
+    );
+    agent.streamFn = createParallelToolCallsWrapper(agent.streamFn, merged.parallel_tool_calls);
   }
 
   // Guard Google payloads against invalid negative thinking budgets emitted by
