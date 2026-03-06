@@ -1,4 +1,5 @@
 import { sleep } from "../utils.js";
+import { sleepWithAbort } from "./backoff.js";
 
 export type RetryConfig = {
   attempts?: number;
@@ -20,6 +21,7 @@ export type RetryOptions = RetryConfig & {
   shouldRetry?: (err: unknown, attempt: number) => boolean;
   retryAfterMs?: (err: unknown) => number | undefined;
   onRetry?: (info: RetryInfo) => void;
+  abortSignal?: AbortSignal;
 };
 
 const DEFAULT_RETRY_CONFIG = {
@@ -128,7 +130,11 @@ export async function retryAsync<T>(
         err,
         label: options.label,
       });
-      await sleep(delay);
+      if (options.abortSignal) {
+        await sleepWithAbort(delay, options.abortSignal);
+      } else {
+        await sleep(delay);
+      }
     }
   }
 

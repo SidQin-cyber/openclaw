@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { retryAsync } from "./retry.js";
+import { createAiProviderRetryRunner } from "./retry-policy.js";
 
 async function runRetryAfterCase(params: {
   minDelayMs: number;
@@ -87,5 +88,69 @@ describe("retryAsync", () => {
   it("clamps retryAfterMs to minDelayMs", async () => {
     const delays = await runRetryAfterCase({ minDelayMs: 250, maxDelayMs: 1000, retryAfterMs: 50 });
     expect(delays[0]).toBe(250);
+  });
+
+  it("respects abortSignal during retry delay", async () => {
+    const controller = new AbortController();
+    const fn = vi.fn().mockRejectedValue(new Error("rate limit 429"));
+
+    const promise = retryAsync(fn, {
+      attempts: 5,
+      minDelayMs: 50_000,
+      maxDelayMs: 100_000,
+      jitter: 0,
+      abortSignal: controller.signal,
+    });
+
+    setTimeout(() => controller.abort(), 50);
+
+    await expect(promise).rejects.toThrow();
+    expect(fn.mock.calls.length).toBeLessThan(5);
+  });
+});
+
+describe("createAiProviderRetryRunner", () => {
+  it("retries on 429 rate limit errors", async () => {
+    const runner = createAiProviderRetryRunner({
+      retry: { attempts: 3, minDelayMs: 1, maxDelayMs: 10, jitter: 0 },
+    });
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("HTTP 429 Too Many Requests"))
+      .mockResolvedValueOnce("ok");
+    const result = await runner(fn, "test-429");
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries on overloaded errors", async () => {
+    const runner = createAiProviderRetryRunner({
+      retry: { attempts: 3, minDelayMs: 1, maxDelayMs: 10, jitter: 0 },
+    });
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("529 overloaded"))
+      .mockResolvedValueOnce("done");
+    const result = await runner(fn, "test-529");
+    expect(result).toBe("done");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry on non-transient errors", async () => {
+    const runner = createAiProviderRetryRunner({
+      retry: { attempts: 3, minDelayMs: 1, maxDelayMs: 10, jitter: 0 },
+    });
+    const fn = vi.fn().mockRejectedValue(new Error("invalid API key"));
+    await expect(runner(fn, "test-auth")).rejects.toThrow("invalid API key");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("exhausts retries and throws on persistent rate limits", async () => {
+    const runner = createAiProviderRetryRunner({
+      retry: { attempts: 3, minDelayMs: 1, maxDelayMs: 10, jitter: 0 },
+    });
+    const fn = vi.fn().mockRejectedValue(new Error("HTTP 429 rate limit"));
+    await expect(runner(fn, "test-exhaust")).rejects.toThrow("429");
+    expect(fn).toHaveBeenCalledTimes(3);
   });
 });
