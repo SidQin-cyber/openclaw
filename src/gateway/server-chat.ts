@@ -1,5 +1,7 @@
+import { hasNonzeroUsage, type NormalizedUsage } from "../agents/usage.js";
 import { DEFAULT_HEARTBEAT_ACK_MAX_CHARS, stripHeartbeatToken } from "../auto-reply/heartbeat.js";
-import { normalizeVerboseLevel } from "../auto-reply/thinking.js";
+import { formatResponseUsageLine } from "../auto-reply/reply/agent-runner-utils.js";
+import { normalizeVerboseLevel, resolveResponseUsageMode } from "../auto-reply/thinking.js";
 import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
 import { loadConfig } from "../config/config.js";
 import { type AgentEventPayload, getAgentRunContext } from "../infra/agent-events.js";
@@ -398,6 +400,7 @@ export function createAgentEventHandler({
     jobState: "done" | "error",
     error?: unknown,
     stopReason?: string,
+    usage?: NormalizedUsage,
   ) => {
     const bufferedText = stripInlineDirectiveTagsForDisplay(
       chatRunState.buffers.get(clientRunId) ?? "",
@@ -446,6 +449,22 @@ export function createAgentEventHandler({
     chatRunState.buffers.delete(clientRunId);
     chatRunState.deltaSentAt.delete(clientRunId);
     if (jobState === "done") {
+      let finalText = text;
+      if (finalText && !shouldSuppressSilent && usage && hasNonzeroUsage(usage)) {
+        try {
+          const { entry } = loadSessionEntry(sessionKey);
+          const usageMode = resolveResponseUsageMode(entry?.responseUsage);
+          if (usageMode !== "off") {
+            const usageLine = formatResponseUsageLine({ usage, showCost: false });
+            if (usageLine) {
+              const suffix = usageMode === "full" ? ` · session \`${sessionKey}\`` : "";
+              finalText = `${finalText}\n${usageLine}${suffix}`;
+            }
+          }
+        } catch {
+          /* session entry not loadable — skip usage */
+        }
+      }
       const payload = {
         runId: clientRunId,
         sessionKey,
@@ -453,10 +472,10 @@ export function createAgentEventHandler({
         state: "final" as const,
         ...(stopReason && { stopReason }),
         message:
-          text && !shouldSuppressSilent
+          finalText && !shouldSuppressSilent
             ? {
                 role: "assistant",
-                content: [{ type: "text", text }],
+                content: [{ type: "text", text: finalText }],
                 timestamp: Date.now(),
               }
             : undefined,
@@ -568,6 +587,7 @@ export function createAgentEventHandler({
       } else if (!isAborted && (lifecyclePhase === "end" || lifecyclePhase === "error")) {
         const evtStopReason =
           typeof evt.data?.stopReason === "string" ? evt.data.stopReason : undefined;
+        const evtUsage = evt.data?.usage as NormalizedUsage | undefined;
         if (chatLink) {
           const finished = chatRunState.registry.shift(evt.runId);
           if (!finished) {
@@ -582,6 +602,7 @@ export function createAgentEventHandler({
             lifecyclePhase === "error" ? "error" : "done",
             evt.data?.error,
             evtStopReason,
+            evtUsage,
           );
         } else {
           emitChatFinal(
@@ -592,6 +613,7 @@ export function createAgentEventHandler({
             lifecyclePhase === "error" ? "error" : "done",
             evt.data?.error,
             evtStopReason,
+            evtUsage,
           );
         }
       } else if (isAborted && (lifecyclePhase === "end" || lifecyclePhase === "error")) {
