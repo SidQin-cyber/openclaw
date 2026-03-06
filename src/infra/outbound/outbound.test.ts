@@ -166,6 +166,9 @@ describe("delivery-queue", () => {
       "Forbidden: bot was kicked from the group chat",
       "chat_id is empty",
       "Outbound not configured for channel: msteams",
+      "Bad Request: message is too long",
+      "Bad Request: message to be replied not found",
+      "Bad Request: reply message not found",
     ])("returns true for permanent error: %s", (msg) => {
       expect(isPermanentDeliveryError(msg)).toBe(true);
     });

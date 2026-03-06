@@ -387,6 +387,9 @@ const PERMANENT_ERROR_PATTERNS: readonly RegExp[] = [
   /recipient is not a valid/i,
   /outbound not configured for channel/i,
   /ambiguous discord recipient/i,
+  /message is too long/i,
+  /message to be replied not found/i,
+  /reply message not found/i,
 ];
 
 export function isPermanentDeliveryError(error: string): boolean {
