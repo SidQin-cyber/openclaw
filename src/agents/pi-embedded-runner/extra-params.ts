@@ -68,13 +68,23 @@ type CacheRetentionStreamOptions = Partial<SimpleStreamOptions> & {
 function resolveCacheRetention(
   extraParams: Record<string, unknown> | undefined,
   provider: string,
+  modelApi?: string,
 ): CacheRetention | undefined {
   const isAnthropicDirect = provider === "anthropic";
   const hasBedrockOverride =
     extraParams?.cacheRetention !== undefined || extraParams?.cacheControlTtl !== undefined;
   const isAnthropicBedrock = provider === "amazon-bedrock" && hasBedrockOverride;
+  // Custom providers using anthropic-messages API support cacheRetention when
+  // explicitly configured (they are Anthropic-compatible proxies).
+  const hasExplicitCacheConfig =
+    extraParams?.cacheRetention !== undefined || extraParams?.cacheControlTtl !== undefined;
+  const isAnthropicApiCustomProvider =
+    !isAnthropicDirect &&
+    !isAnthropicBedrock &&
+    modelApi === "anthropic-messages" &&
+    hasExplicitCacheConfig;
 
-  if (!isAnthropicDirect && !isAnthropicBedrock) {
+  if (!isAnthropicDirect && !isAnthropicBedrock && !isAnthropicApiCustomProvider) {
     return undefined;
   }
 
@@ -107,6 +117,7 @@ function createStreamFnWithExtraParams(
   baseStreamFn: StreamFn | undefined,
   extraParams: Record<string, unknown> | undefined,
   provider: string,
+  modelApi?: string,
 ): StreamFn | undefined {
   if (!extraParams || Object.keys(extraParams).length === 0) {
     return undefined;
@@ -129,7 +140,7 @@ function createStreamFnWithExtraParams(
   if (typeof extraParams.openaiWsWarmup === "boolean") {
     streamParams.openaiWsWarmup = extraParams.openaiWsWarmup;
   }
-  const cacheRetention = resolveCacheRetention(extraParams, provider);
+  const cacheRetention = resolveCacheRetention(extraParams, provider, modelApi);
   if (cacheRetention) {
     streamParams.cacheRetention = cacheRetention;
   }
@@ -1047,6 +1058,7 @@ export function applyExtraParamsToAgent(
   extraParamsOverride?: Record<string, unknown>,
   thinkingLevel?: ThinkLevel,
   agentId?: string,
+  modelApi?: string,
 ): void {
   const extraParams = resolveExtraParams({
     cfg,
@@ -1068,7 +1080,7 @@ export function applyExtraParamsToAgent(
         )
       : undefined;
   const merged = Object.assign({}, extraParams, override);
-  const wrappedStreamFn = createStreamFnWithExtraParams(agent.streamFn, merged, provider);
+  const wrappedStreamFn = createStreamFnWithExtraParams(agent.streamFn, merged, provider, modelApi);
 
   if (wrappedStreamFn) {
     log.debug(`applying extraParams to agent streamFn for ${provider}/${modelId}`);

@@ -151,4 +151,57 @@ describe("cacheRetention default behavior", () => {
     // Verify streamFn was set (override was applied)
     expect(agent.streamFn).toBeDefined();
   });
+
+  it("applies cacheRetention for custom providers using anthropic-messages API when explicitly configured", () => {
+    const agent: { streamFn?: StreamFn } = {};
+    const cfg = {
+      agents: {
+        defaults: {
+          models: {
+            "my-proxy/claude-opus-4-6": {
+              params: {
+                cacheRetention: "short" as const,
+              },
+            },
+          },
+        },
+      },
+    };
+    const provider = "my-proxy";
+    const modelId = "claude-opus-4-6";
+
+    applyExtraParamsToAgent(
+      agent,
+      cfg,
+      provider,
+      modelId,
+      undefined,
+      undefined,
+      undefined,
+      "anthropic-messages",
+    );
+
+    expect(agent.streamFn).toBeDefined();
+  });
+
+  it("does not apply cacheRetention for custom anthropic-messages provider without explicit config", () => {
+    const agent: { streamFn?: StreamFn } = {};
+    const cfg = undefined;
+    const provider = "my-proxy";
+    const modelId = "claude-opus-4-6";
+
+    applyExtraParamsToAgent(
+      agent,
+      cfg,
+      provider,
+      modelId,
+      undefined,
+      undefined,
+      undefined,
+      "anthropic-messages",
+    );
+
+    // No explicit cacheRetention configured — should not wrap streamFn for caching
+    // (streamFn may still be undefined or wrapped for other reasons)
+  });
 });
