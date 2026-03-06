@@ -109,8 +109,8 @@ function cloneFirstTemplateModel(params: {
   return undefined;
 }
 
-const CODEX_GPT54_ELIGIBLE_PROVIDERS = new Set(["openai-codex"]);
-const CODEX_GPT53_ELIGIBLE_PROVIDERS = new Set(["openai-codex", "github-copilot"]);
+const CODEX_GPT54_ELIGIBLE_PROVIDERS = new Set(["openai-codex", "codex-cli"]);
+const CODEX_GPT53_ELIGIBLE_PROVIDERS = new Set(["openai-codex", "codex-cli", "github-copilot"]);
 
 function resolveOpenAICodexForwardCompatModel(
   provider: string,
@@ -137,8 +137,10 @@ function resolveOpenAICodexForwardCompatModel(
     return undefined;
   }
 
+  const catalogProvider = normalizedProvider === "codex-cli" ? "openai-codex" : normalizedProvider;
+
   for (const templateId of templateIds) {
-    const template = modelRegistry.find(normalizedProvider, templateId) as Model<Api> | null;
+    const template = modelRegistry.find(catalogProvider, templateId) as Model<Api> | null;
     if (!template) {
       continue;
     }
@@ -153,7 +155,7 @@ function resolveOpenAICodexForwardCompatModel(
     id: trimmedModelId,
     name: trimmedModelId,
     api: "openai-codex-responses",
-    provider: normalizedProvider,
+    provider: catalogProvider,
     baseUrl: "https://chatgpt.com/backend-api",
     reasoning: true,
     input: ["text", "image"],

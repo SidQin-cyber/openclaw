@@ -70,6 +70,9 @@ export function normalizeProviderIdForAuth(provider: string): string {
   if (normalized === "byteplus-plan") {
     return "byteplus";
   }
+  if (normalized === "codex-cli") {
+    return "openai-codex";
+  }
   return normalized;
 }
 

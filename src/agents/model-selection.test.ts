@@ -71,6 +71,10 @@ describe("model-selection", () => {
       expect(normalizeProviderIdForAuth("byteplus-plan")).toBe("byteplus");
       expect(normalizeProviderIdForAuth("openai")).toBe("openai");
     });
+
+    it("maps codex-cli to openai-codex for auth lookup", () => {
+      expect(normalizeProviderIdForAuth("codex-cli")).toBe("openai-codex");
+    });
   });
 
   describe("parseModelRef", () => {
