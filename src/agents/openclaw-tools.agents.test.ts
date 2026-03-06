@@ -109,6 +109,19 @@ describe("agents_list", () => {
     expect(agents?.map((agent) => agent.id)).toEqual(["main", "coder", "research"]);
   });
 
+  it("lists all configured agents when allowAgents is not set", async () => {
+    setConfigWithAgentList([
+      { id: "main", name: "Main" },
+      { id: "research", name: "Research" },
+      { id: "coder", name: "Coder" },
+    ]);
+
+    const tool = requireAgentsListTool();
+    const result = await tool.execute("call-vis", {});
+    const agents = readAgentList(result);
+    expect(agents?.map((agent) => agent.id)).toEqual(["main", "coder", "research"]);
+  });
+
   it("marks allowlisted-but-unconfigured agents", async () => {
     setConfigWithAgentList([
       {

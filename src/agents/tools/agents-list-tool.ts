@@ -67,7 +67,7 @@ export function createAgentsListTool(opts?: {
 
       const allowed = new Set<string>();
       allowed.add(requesterAgentId);
-      if (allowAny) {
+      if (allowAny || allowAgents.length === 0) {
         for (const id of configuredIds) {
           allowed.add(id);
         }
