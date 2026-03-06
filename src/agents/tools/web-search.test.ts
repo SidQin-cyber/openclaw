@@ -15,6 +15,7 @@ const {
   resolveKimiModel,
   resolveKimiBaseUrl,
   extractKimiCitations,
+  extractErrorCause,
 } = __testing;
 
 describe("web_search brave language param normalization", () => {
@@ -243,6 +244,33 @@ describe("web_search kimi config resolution", () => {
   it("resolves default model and baseUrl", () => {
     expect(resolveKimiModel({})).toBe("moonshot-v1-128k");
     expect(resolveKimiBaseUrl({})).toBe("https://api.moonshot.ai/v1");
+  });
+});
+
+describe("extractErrorCause", () => {
+  it("returns plain message for simple errors", () => {
+    expect(extractErrorCause(new Error("fetch failed"))).toBe("fetch failed");
+  });
+
+  it("includes cause code and message", () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:7890"), {
+      code: "ECONNREFUSED",
+    });
+    const err = Object.assign(new TypeError("fetch failed"), { cause });
+    expect(extractErrorCause(err)).toBe(
+      "fetch failed — ECONNREFUSED: connect ECONNREFUSED 127.0.0.1:7890",
+    );
+  });
+
+  it("includes cause message without code", () => {
+    const cause = new Error("socket hang up");
+    const err = Object.assign(new TypeError("fetch failed"), { cause });
+    expect(extractErrorCause(err)).toBe("fetch failed — socket hang up");
+  });
+
+  it("handles non-Error values", () => {
+    expect(extractErrorCause("some string")).toBe("some string");
+    expect(extractErrorCause(42)).toBe("42");
   });
 });
 

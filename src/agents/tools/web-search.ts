@@ -3,6 +3,7 @@ import { formatCliCommand } from "../../cli/command-format.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import { normalizeResolvedSecretInputString } from "../../config/types.secrets.js";
 import { logVerbose } from "../../globals.js";
+import { hasProxyEnvConfigured } from "../../infra/net/proxy-env.js";
 import { wrapWebContent } from "../../security/external-content.js";
 import { normalizeSecretInput } from "../../utils/normalize-secret-input.js";
 import type { AnyAgentTool } from "./common.js";
@@ -674,6 +675,23 @@ function resolveGeminiModel(gemini?: GeminiConfig): string {
   return fromConfig || DEFAULT_GEMINI_MODEL;
 }
 
+function extractErrorCause(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return String(err);
+  }
+  const parts: string[] = [err.message];
+  const cause = (err as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error) {
+    const code = (cause as Error & { code?: string }).code;
+    if (code) {
+      parts.push(`${code}: ${cause.message}`);
+    } else {
+      parts.push(cause.message);
+    }
+  }
+  return parts.join(" — ");
+}
+
 async function withTrustedWebSearchEndpoint<T>(
   params: {
     url: string;
@@ -682,14 +700,23 @@ async function withTrustedWebSearchEndpoint<T>(
   },
   run: (response: Response) => Promise<T>,
 ): Promise<T> {
-  return withTrustedWebToolsEndpoint(
-    {
-      url: params.url,
-      init: params.init,
-      timeoutSeconds: params.timeoutSeconds,
-    },
-    async ({ response }) => run(response),
-  );
+  try {
+    return await withTrustedWebToolsEndpoint(
+      {
+        url: params.url,
+        init: params.init,
+        timeoutSeconds: params.timeoutSeconds,
+        auditContext: "web_search",
+      },
+      async ({ response }) => run(response),
+    );
+  } catch (err) {
+    const detail = extractErrorCause(err);
+    const proxyHint = hasProxyEnvConfigured()
+      ? " (HTTP_PROXY / HTTPS_PROXY is set — verify the proxy is reachable from the gateway process)"
+      : "";
+    throw new Error(`web_search request failed: ${detail}${proxyHint}`, { cause: err });
+  }
 }
 
 async function runGeminiSearch(params: {
@@ -1684,4 +1711,5 @@ export const __testing = {
   resolveKimiBaseUrl,
   extractKimiCitations,
   resolveRedirectUrl: resolveCitationRedirectUrl,
+  extractErrorCause,
 } as const;
