@@ -561,6 +561,19 @@ export function normalizeProviders(params: {
       normalizedProvider = antigravityNormalized;
     }
 
+    if (
+      normalizedProvider.api === "anthropic-messages" &&
+      normalizedProvider.authHeader === undefined
+    ) {
+      const baseUrl =
+        typeof normalizedProvider.baseUrl === "string" ? normalizedProvider.baseUrl : "";
+      const isOfficialAnthropic = !baseUrl || baseUrl.includes("api.anthropic.com");
+      if (!isOfficialAnthropic) {
+        mutated = true;
+        normalizedProvider = { ...normalizedProvider, authHeader: true };
+      }
+    }
+
     const existing = next[normalizedKey];
     if (existing) {
       // Keep deterministic behavior if users accidentally define duplicate

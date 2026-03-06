@@ -73,4 +73,59 @@ describe("normalizeProviders", () => {
       await fs.rm(agentDir, { recursive: true, force: true });
     }
   });
+
+  it("defaults authHeader to true for anthropic-messages providers with non-Anthropic baseUrl", async () => {
+    const agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-agent-"));
+    try {
+      const providers: NonNullable<NonNullable<OpenClawConfig["models"]>["providers"]> = {
+        minimax: {
+          baseUrl: "https://api.minimaxi.com/anthropic",
+          api: "anthropic-messages",
+          apiKey: "MINIMAX_API_KEY",
+          models: [],
+        },
+      };
+      const normalized = normalizeProviders({ providers, agentDir });
+      expect(normalized?.minimax?.authHeader).toBe(true);
+    } finally {
+      await fs.rm(agentDir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not override authHeader for official Anthropic provider", async () => {
+    const agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-agent-"));
+    try {
+      const providers: NonNullable<NonNullable<OpenClawConfig["models"]>["providers"]> = {
+        anthropic: {
+          baseUrl: "https://api.anthropic.com",
+          api: "anthropic-messages",
+          apiKey: "ANTHROPIC_API_KEY",
+          models: [],
+        },
+      };
+      const normalized = normalizeProviders({ providers, agentDir });
+      expect(normalized?.anthropic?.authHeader).toBeUndefined();
+    } finally {
+      await fs.rm(agentDir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves explicit authHeader=false for anthropic-messages providers", async () => {
+    const agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-agent-"));
+    try {
+      const providers: NonNullable<NonNullable<OpenClawConfig["models"]>["providers"]> = {
+        custom: {
+          baseUrl: "https://custom.example.com/anthropic",
+          api: "anthropic-messages",
+          apiKey: "CUSTOM_KEY",
+          authHeader: false,
+          models: [],
+        },
+      };
+      const normalized = normalizeProviders({ providers, agentDir });
+      expect(normalized?.custom?.authHeader).toBe(false);
+    } finally {
+      await fs.rm(agentDir, { recursive: true, force: true });
+    }
+  });
 });
