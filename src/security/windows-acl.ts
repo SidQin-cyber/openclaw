@@ -33,14 +33,33 @@ const TRUSTED_BASE = new Set([
   "system",
   "builtin\\administrators",
   "creator owner",
-  // Localized SYSTEM account names (French, German, Spanish, Portuguese)
-  "autorite nt\\système",
-  "nt-autorität\\system",
-  "autoridad nt\\system",
-  "autoridade nt\\system",
+  // Localized SYSTEM account names
+  "autorite nt\\système", // French
+  "nt-autorität\\system", // German
+  "autoridad nt\\system", // Spanish
+  "autoridade nt\\system", // Portuguese
+  "nt authority\\\u0441\u0438\u0441\u0442\u0435\u043c\u0430", // Russian: NT AUTHORITY\система
+  "\u0441\u0438\u0441\u0442\u0435\u043c\u0430", // Russian: система (SYSTEM)
 ]);
 const WORLD_SUFFIXES = ["\\users", "\\authenticated users"];
-const TRUSTED_SUFFIXES = ["\\administrators", "\\system", "\\système"];
+const TRUSTED_SUFFIXES = [
+  "\\administrators",
+  "\\system",
+  "\\syst\u00e8me", // French: système
+  "\\\u0441\u0438\u0441\u0442\u0435\u043c\u0430", // Russian: система
+];
+
+// Localized prefixes for the NT AUTHORITY domain. On non-English Windows, icacls
+// outputs the domain in the OS language. When the console code page doesn't match
+// (e.g. Russian Win-1251 vs UTF-8), the text may be garbled. Matching the prefix
+// is sufficient because only system-level accounts live under this domain.
+const NT_AUTHORITY_PREFIXES = [
+  "nt authority\\",
+  "autorite nt\\", // French
+  "nt-autorit\u00e4t\\", // German: NT-Autorität
+  "autoridad nt\\", // Spanish
+  "autoridade nt\\", // Portuguese
+];
 
 const SID_RE = /^s-\d+-\d+(-\d+)+$/i;
 const TRUSTED_SIDS = new Set([
@@ -117,6 +136,13 @@ function classifyPrincipal(
         return stripped.endsWith(strippedSuffix);
       }))
   ) {
+    return "trusted";
+  }
+
+  // Fallback: localized NT AUTHORITY prefix variants (handles encoding
+  // corruption where icacls outputs e.g. "NT AUTHORITY\�������" on
+  // non-UTF-8 locales like Russian Windows-1251).
+  if (NT_AUTHORITY_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
     return "trusted";
   }
 

@@ -503,6 +503,34 @@ Successfully processed 1 files`;
       expect(untrustedWorld).toHaveLength(0);
       expect(untrustedGroup).toHaveLength(0);
     });
+
+    it("classifies Russian SYSTEM (NT AUTHORITY\\\u0421\u0418\u0421\u0422\u0415\u041C\u0410) as trusted", () => {
+      expectTrustedOnly([
+        aclEntry({ principal: "NT AUTHORITY\\\u0421\u0418\u0421\u0422\u0415\u041C\u0410" }),
+      ]);
+    });
+
+    it("classifies Russian СИСТЕМА (lowercase) as trusted", () => {
+      expectTrustedOnly([aclEntry({ principal: "\u0441\u0438\u0441\u0442\u0435\u043c\u0430" })]);
+    });
+
+    it("classifies garbled NT AUTHORITY prefix as trusted (encoding corruption)", () => {
+      expectTrustedOnly([aclEntry({ principal: "NT AUTHORITY\\\uFFFD\uFFFD\uFFFD\uFFFD" })]);
+    });
+
+    it("Russian Windows full scenario: user + \u0421\u0418\u0421\u0422\u0415\u041C\u0410 only \u2192 no untrusted", () => {
+      const entries: WindowsAclEntry[] = [
+        aclEntry({ principal: "MYPC\\Ivan" }),
+        aclEntry({
+          principal: "NT AUTHORITY\\\u0421\u0418\u0421\u0422\u0415\u041C\u0410",
+        }),
+      ];
+      const env = { USERNAME: "Ivan", USERDOMAIN: "MYPC" };
+      const { trusted, untrustedWorld, untrustedGroup } = summarizeWindowsAcl(entries, env);
+      expect(trusted).toHaveLength(2);
+      expect(untrustedWorld).toHaveLength(0);
+      expect(untrustedGroup).toHaveLength(0);
+    });
   });
 
   describe("formatIcaclsResetCommand — uses SID for SYSTEM", () => {
