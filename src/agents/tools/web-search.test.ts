@@ -15,6 +15,7 @@ const {
   resolveKimiModel,
   resolveKimiBaseUrl,
   extractKimiCitations,
+  summarizeNetworkError,
 } = __testing;
 
 describe("web_search brave language param normalization", () => {
@@ -269,5 +270,47 @@ describe("extractKimiCitations", () => {
         ],
       }).toSorted(),
     ).toEqual(["https://example.com/a", "https://example.com/b", "https://example.com/c"]);
+  });
+});
+
+describe("summarizeNetworkError", () => {
+  it("extracts code and cause from Node.js fetch errors", () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:7890"), {
+      code: "ECONNREFUSED",
+    });
+    const err = new Error("fetch failed", { cause });
+    const result = summarizeNetworkError(err);
+    expect(result.message).toBe("fetch failed: connect ECONNREFUSED 127.0.0.1:7890");
+    expect(result.code).toBe("ECONNREFUSED");
+    expect(result.hint).toContain("proxy");
+  });
+
+  it("provides DNS hint for ENOTFOUND", () => {
+    const cause = Object.assign(new Error("getaddrinfo ENOTFOUND api.search.brave.com"), {
+      code: "ENOTFOUND",
+    });
+    const result = summarizeNetworkError(new Error("fetch failed", { cause }));
+    expect(result.code).toBe("ENOTFOUND");
+    expect(result.hint).toContain("DNS");
+  });
+
+  it("provides timeout hint for ETIMEDOUT", () => {
+    const cause = Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT" });
+    const result = summarizeNetworkError(new Error("fetch failed", { cause }));
+    expect(result.code).toBe("ETIMEDOUT");
+    expect(result.hint).toContain("timed out");
+  });
+
+  it("provides generic hint for bare 'fetch failed' with no cause", () => {
+    const result = summarizeNetworkError(new Error("fetch failed"));
+    expect(result.message).toBe("fetch failed");
+    expect(result.code).toBeUndefined();
+    expect(result.hint).toContain("Generic fetch failure");
+  });
+
+  it("handles non-Error values gracefully", () => {
+    const result = summarizeNetworkError("something broke");
+    expect(result.message).toBe("something broke");
+    expect(result.code).toBeUndefined();
   });
 });

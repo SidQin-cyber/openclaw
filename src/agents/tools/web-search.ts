@@ -2,7 +2,8 @@ import { Type } from "@sinclair/typebox";
 import { formatCliCommand } from "../../cli/command-format.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import { normalizeResolvedSecretInputString } from "../../config/types.secrets.js";
-import { logVerbose } from "../../globals.js";
+import { logVerbose, logWarn } from "../../globals.js";
+import { SsrFBlockedError } from "../../infra/net/ssrf.js";
 import { wrapWebContent } from "../../security/external-content.js";
 import { normalizeSecretInput } from "../../utils/normalize-secret-input.js";
 import type { AnyAgentTool } from "./common.js";
@@ -20,6 +21,41 @@ import {
   resolveTimeoutSeconds,
   writeCache,
 } from "./web-shared.js";
+
+function summarizeNetworkError(err: unknown): {
+  message: string;
+  code?: string;
+  hint?: string;
+} {
+  const msg = err instanceof Error ? err.message : String(err);
+  const cause = err instanceof Error ? (err.cause as Error | undefined) : undefined;
+  const causeMsg = cause instanceof Error ? cause.message : undefined;
+  const code =
+    cause && typeof cause === "object" && "code" in cause && typeof cause.code === "string"
+      ? cause.code
+      : undefined;
+
+  const detail = causeMsg ? `${msg}: ${causeMsg}` : msg;
+
+  let hint: string | undefined;
+  if (code === "ECONNREFUSED" || code === "ECONNRESET") {
+    hint =
+      "Connection refused or reset. If you use an HTTP proxy (HTTP_PROXY / HTTPS_PROXY env), ensure it is running and reachable.";
+  } else if (code === "ENOTFOUND") {
+    hint = "DNS lookup failed. Check that the host is reachable and DNS is configured correctly.";
+  } else if (code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT") {
+    hint =
+      "Connection timed out. Try increasing tools.web.search.timeoutSeconds or check network connectivity.";
+  } else if (/proxy/i.test(detail)) {
+    hint =
+      "The error mentions a proxy. Check HTTP_PROXY / HTTPS_PROXY environment variables and ensure the proxy is accessible.";
+  } else if (msg === "fetch failed" && !causeMsg) {
+    hint =
+      "Generic fetch failure. If you use a system proxy (e.g., Clash, Surge), ensure it is running. Set HTTPS_PROXY or HTTP_PROXY if direct access is available, or unset them if the proxy is down.";
+  }
+
+  return { message: detail, code, hint };
+}
 
 const SEARCH_PROVIDERS = ["brave", "perplexity", "grok", "gemini", "kimi"] as const;
 const DEFAULT_SEARCH_COUNT = 5;
@@ -1638,30 +1674,48 @@ export function createWebSearchTool(options?: {
       const maxTokens = readNumberParam(params, "max_tokens", { integer: true });
       const maxTokensPerPage = readNumberParam(params, "max_tokens_per_page", { integer: true });
 
-      const result = await runWebSearch({
-        query,
-        count: resolveSearchCount(count, DEFAULT_SEARCH_COUNT),
-        apiKey,
-        timeoutSeconds: resolveTimeoutSeconds(search?.timeoutSeconds, DEFAULT_TIMEOUT_SECONDS),
-        cacheTtlMs: resolveCacheTtlMs(search?.cacheTtlMinutes, DEFAULT_CACHE_TTL_MINUTES),
-        provider,
-        country,
-        language,
-        search_lang: resolvedSearchLang,
-        ui_lang: resolvedUiLang,
-        freshness,
-        dateAfter,
-        dateBefore,
-        searchDomainFilter: domainFilter,
-        maxTokens: maxTokens ?? undefined,
-        maxTokensPerPage: maxTokensPerPage ?? undefined,
-        grokModel: resolveGrokModel(grokConfig),
-        grokInlineCitations: resolveGrokInlineCitations(grokConfig),
-        geminiModel: resolveGeminiModel(geminiConfig),
-        kimiBaseUrl: resolveKimiBaseUrl(kimiConfig),
-        kimiModel: resolveKimiModel(kimiConfig),
-      });
-      return jsonResult(result);
+      try {
+        const result = await runWebSearch({
+          query,
+          count: resolveSearchCount(count, DEFAULT_SEARCH_COUNT),
+          apiKey,
+          timeoutSeconds: resolveTimeoutSeconds(search?.timeoutSeconds, DEFAULT_TIMEOUT_SECONDS),
+          cacheTtlMs: resolveCacheTtlMs(search?.cacheTtlMinutes, DEFAULT_CACHE_TTL_MINUTES),
+          provider,
+          country,
+          language,
+          search_lang: resolvedSearchLang,
+          ui_lang: resolvedUiLang,
+          freshness,
+          dateAfter,
+          dateBefore,
+          searchDomainFilter: domainFilter,
+          maxTokens: maxTokens ?? undefined,
+          maxTokensPerPage: maxTokensPerPage ?? undefined,
+          grokModel: resolveGrokModel(grokConfig),
+          grokInlineCitations: resolveGrokInlineCitations(grokConfig),
+          geminiModel: resolveGeminiModel(geminiConfig),
+          kimiBaseUrl: resolveKimiBaseUrl(kimiConfig),
+          kimiModel: resolveKimiModel(kimiConfig),
+        });
+        return jsonResult(result);
+      } catch (err) {
+        if (err instanceof SsrFBlockedError) {
+          throw err;
+        }
+        const summary = summarizeNetworkError(err);
+        logWarn(
+          `web_search (${provider}): network error for query="${query}": ${summary.message}${summary.code ? ` [${summary.code}]` : ""}`,
+        );
+        return jsonResult({
+          error: "fetch_failed",
+          provider,
+          message: summary.message,
+          ...(summary.code ? { code: summary.code } : {}),
+          ...(summary.hint ? { hint: summary.hint } : {}),
+          docs: "https://docs.openclaw.ai/tools/web",
+        });
+      }
     },
   };
 }
@@ -1684,4 +1738,5 @@ export const __testing = {
   resolveKimiBaseUrl,
   extractKimiCitations,
   resolveRedirectUrl: resolveCitationRedirectUrl,
+  summarizeNetworkError,
 } as const;
