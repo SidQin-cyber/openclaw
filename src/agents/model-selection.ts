@@ -532,11 +532,27 @@ export function resolveAllowedModelRef(params: {
   return { ref: resolved.ref, key: status.key };
 }
 
+function resolveAgentThinkingDefault(
+  cfg: OpenClawConfig,
+  agentId?: string,
+): ThinkLevel | undefined {
+  if (!agentId) {
+    return undefined;
+  }
+  const list = cfg.agents?.list;
+  if (!Array.isArray(list)) {
+    return undefined;
+  }
+  const entry = list.find((a) => a.id === agentId);
+  return (entry?.thinkingDefault as ThinkLevel | undefined) ?? undefined;
+}
+
 export function resolveThinkingDefault(params: {
   cfg: OpenClawConfig;
   provider: string;
   model: string;
   catalog?: ModelCatalogEntry[];
+  agentId?: string;
 }): ThinkLevel {
   const normalizedProvider = normalizeProviderId(params.provider);
   const modelLower = params.model.toLowerCase();
@@ -553,6 +569,10 @@ export function resolveThinkingDefault(params: {
     perModelThinking === "adaptive"
   ) {
     return perModelThinking;
+  }
+  const agentLevel = resolveAgentThinkingDefault(params.cfg, params.agentId);
+  if (agentLevel) {
+    return agentLevel;
   }
   const configured = params.cfg.agents?.defaults?.thinkingDefault;
   if (configured) {

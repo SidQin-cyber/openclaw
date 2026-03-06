@@ -538,6 +538,91 @@ describe("model-selection", () => {
         }),
       ).toBe("adaptive");
     });
+
+    it("uses per-agent thinkingDefault over global thinkingDefault", () => {
+      const cfg = {
+        agents: {
+          defaults: {
+            thinkingDefault: "low",
+          },
+          list: [{ id: "research", thinkingDefault: "high" }],
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "openai",
+          model: "gpt-5.2",
+          agentId: "research",
+        }),
+      ).toBe("high");
+    });
+
+    it("falls back to global thinkingDefault when agent has no override", () => {
+      const cfg = {
+        agents: {
+          defaults: {
+            thinkingDefault: "medium",
+          },
+          list: [{ id: "research" }],
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "openai",
+          model: "gpt-5.2",
+          agentId: "research",
+        }),
+      ).toBe("medium");
+    });
+
+    it("falls back to global thinkingDefault when agentId is not in list", () => {
+      const cfg = {
+        agents: {
+          defaults: {
+            thinkingDefault: "low",
+          },
+          list: [{ id: "other", thinkingDefault: "high" }],
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "openai",
+          model: "gpt-5.2",
+          agentId: "unknown",
+        }),
+      ).toBe("low");
+    });
+
+    it("per-model params.thinking beats per-agent thinkingDefault", () => {
+      const cfg = {
+        agents: {
+          defaults: {
+            models: {
+              "anthropic/claude-opus-4-6": {
+                params: { thinking: "xhigh" },
+              },
+            },
+          },
+          list: [{ id: "research", thinkingDefault: "low" }],
+        },
+      } as OpenClawConfig;
+
+      expect(
+        resolveThinkingDefault({
+          cfg,
+          provider: "anthropic",
+          model: "claude-opus-4-6",
+          catalog: ANTHROPIC_OPUS_CATALOG,
+          agentId: "research",
+        }),
+      ).toBe("xhigh");
+    });
   });
 });
 

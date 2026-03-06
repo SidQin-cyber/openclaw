@@ -374,6 +374,7 @@ export async function resolveReplyDirectives(params: {
   const modelState = await createModelSelectionState({
     cfg,
     agentCfg,
+    agentId,
     sessionEntry,
     sessionStore,
     sessionKey,
