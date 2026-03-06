@@ -350,6 +350,17 @@ async function shouldProcessLineEvent(
         return denied;
       }
     }
+    const requireMention = groupConfig?.requireMention === true;
+    if (requireMention && event.type === "message") {
+      const mentioned = isLineBotMentioned(event);
+      if (!mentioned) {
+        logVerbose(
+          `line: skipped group message (requireMention=true, bot not mentioned, group=${groupId ?? roomId ?? "unknown"})`,
+        );
+        return denied;
+      }
+    }
+
     const allowForCommands = effectiveGroupAllow;
     const senderAllowedForCommands = isSenderAllowed({ allow: allowForCommands, senderId });
     const useAccessGroups = cfg.commands?.useAccessGroups !== false;
@@ -397,6 +408,15 @@ async function shouldProcessLineEvent(
     hasControlCommand: hasControlCommand(rawText, cfg),
   });
   return { allowed: true, commandAuthorized: commandGate.commandAuthorized };
+}
+
+function isLineBotMentioned(event: MessageEvent): boolean {
+  if (event.message.type !== "text") {
+    return false;
+  }
+  const mention = (event.message as { mention?: { mentionees?: Array<{ isSelf?: boolean }> } })
+    .mention;
+  return mention?.mentionees?.some((m) => m.isSelf === true) ?? false;
 }
 
 function resolveEventRawText(event: MessageEvent | PostbackEvent): string {

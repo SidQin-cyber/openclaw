@@ -640,4 +640,78 @@ describe("handleLineWebhookEvents", () => {
       expect.stringContaining("line: event handler failed: Error: transient failure"),
     );
   });
+
+  it("drops group message when requireMention=true and bot not mentioned", async () => {
+    const processMessage = vi.fn();
+    const event = {
+      type: "message",
+      message: { id: "m-mention-1", type: "text", text: "hello" },
+      replyToken: "reply-token",
+      timestamp: Date.now(),
+      source: { type: "group", groupId: "group-mention-1", userId: "user-mention-1" },
+      mode: "active",
+      webhookEventId: "evt-mention-1",
+      deliveryContext: { isRedelivery: false },
+    } as MessageEvent;
+
+    await handleLineWebhookEvents([event], {
+      cfg: { channels: { line: {} } },
+      account: {
+        accountId: "default",
+        enabled: true,
+        channelAccessToken: "token",
+        channelSecret: "secret",
+        tokenSource: "config",
+        config: {
+          groupPolicy: "open",
+          groups: { "group-mention-1": { requireMention: true } },
+        },
+      },
+      runtime: createRuntime(),
+      mediaMaxBytes: 1,
+      processMessage,
+    });
+
+    expect(processMessage).not.toHaveBeenCalled();
+    expect(buildLineMessageContextMock).not.toHaveBeenCalled();
+  });
+
+  it("allows group message when requireMention=true and bot is mentioned", async () => {
+    const processMessage = vi.fn();
+    const event = {
+      type: "message",
+      message: {
+        id: "m-mention-2",
+        type: "text",
+        text: "@bot hello",
+        mention: { mentionees: [{ isSelf: true, index: 0, length: 4 }] },
+      },
+      replyToken: "reply-token",
+      timestamp: Date.now(),
+      source: { type: "group", groupId: "group-mention-1", userId: "user-mention-2" },
+      mode: "active",
+      webhookEventId: "evt-mention-2",
+      deliveryContext: { isRedelivery: false },
+    } as MessageEvent;
+
+    await handleLineWebhookEvents([event], {
+      cfg: { channels: { line: {} } },
+      account: {
+        accountId: "default",
+        enabled: true,
+        channelAccessToken: "token",
+        channelSecret: "secret",
+        tokenSource: "config",
+        config: {
+          groupPolicy: "open",
+          groups: { "group-mention-1": { requireMention: true } },
+        },
+      },
+      runtime: createRuntime(),
+      mediaMaxBytes: 1,
+      processMessage,
+    });
+
+    expect(processMessage).toHaveBeenCalled();
+  });
 });
