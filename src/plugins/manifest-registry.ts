@@ -10,6 +10,7 @@ import type { PluginConfigUiHint, PluginDiagnostic, PluginKind, PluginOrigin } f
 type SeenIdEntry = {
   candidate: PluginCandidate;
   recordIndex: number;
+  version?: string;
 };
 
 // Precedence: config > workspace > global > bundled
@@ -212,7 +213,15 @@ export function loadPluginManifestRegistry(params: {
         }
         const existingReal = safeRealpathSync(existing.candidate.rootDir, realpathCache);
         const candidateReal = safeRealpathSync(candidate.rootDir, realpathCache);
-        return Boolean(existingReal && candidateReal && existingReal === candidateReal);
+        if (existingReal && candidateReal && existingReal === candidateReal) {
+          return true;
+        }
+        // Treat as the same logical plugin when both have a matching version
+        // (e.g. bundled and global copies installed from the same release).
+        if (existing.version && manifest.version && existing.version === manifest.version) {
+          return true;
+        }
+        return false;
       })();
       if (samePlugin) {
         // Prefer higher-precedence origins even if candidates are passed in
@@ -225,7 +234,11 @@ export function loadPluginManifestRegistry(params: {
             schemaCacheKey,
             configSchema,
           });
-          seenIds.set(manifest.id, { candidate, recordIndex: existing.recordIndex });
+          seenIds.set(manifest.id, {
+            candidate,
+            recordIndex: existing.recordIndex,
+            version: manifest.version,
+          });
         }
         continue;
       }
@@ -236,7 +249,11 @@ export function loadPluginManifestRegistry(params: {
         message: `duplicate plugin id detected; later plugin may be overridden (${candidate.source})`,
       });
     } else {
-      seenIds.set(manifest.id, { candidate, recordIndex: records.length });
+      seenIds.set(manifest.id, {
+        candidate,
+        recordIndex: records.length,
+        version: manifest.version,
+      });
     }
 
     records.push(

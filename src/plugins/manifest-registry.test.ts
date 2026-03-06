@@ -185,6 +185,51 @@ describe("loadPluginManifestRegistry", () => {
     expect(countDuplicateWarnings(loadRegistry(candidates))).toBe(0);
   });
 
+  it("suppresses duplicate warning when both candidates have the same manifest version", () => {
+    const dirA = makeTempDir();
+    const dirB = makeTempDir();
+    const manifest = { id: "feishu", version: "2026.3.2", configSchema: { type: "object" } };
+    writeManifest(dirA, manifest);
+    writeManifest(dirB, manifest);
+
+    const candidates: PluginCandidate[] = [
+      createPluginCandidate({
+        idHint: "feishu",
+        rootDir: dirA,
+        origin: "bundled",
+      }),
+      createPluginCandidate({
+        idHint: "feishu",
+        rootDir: dirB,
+        origin: "global",
+      }),
+    ];
+
+    expect(countDuplicateWarnings(loadRegistry(candidates))).toBe(0);
+  });
+
+  it("emits duplicate warning when same id but different versions", () => {
+    const dirA = makeTempDir();
+    const dirB = makeTempDir();
+    writeManifest(dirA, { id: "feishu", version: "2026.3.1", configSchema: { type: "object" } });
+    writeManifest(dirB, { id: "feishu", version: "2026.3.2", configSchema: { type: "object" } });
+
+    const candidates: PluginCandidate[] = [
+      createPluginCandidate({
+        idHint: "feishu",
+        rootDir: dirA,
+        origin: "bundled",
+      }),
+      createPluginCandidate({
+        idHint: "feishu",
+        rootDir: dirB,
+        origin: "global",
+      }),
+    ];
+
+    expect(countDuplicateWarnings(loadRegistry(candidates))).toBe(1);
+  });
+
   it("suppresses duplicate warning when candidates have identical rootDir paths", () => {
     const dir = makeTempDir();
     const manifest = { id: "same-path-plugin", configSchema: { type: "object" } };
