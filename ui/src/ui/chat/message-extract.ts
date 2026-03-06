@@ -92,7 +92,7 @@ export function extractRawText(message: unknown): string | null {
     const parts = content
       .map((p) => {
         const item = p as Record<string, unknown>;
-        if (item.type === "text" && typeof item.text === "string") {
+        if (typeof item.text === "string" && (!item.type || item.type === "text")) {
           return item.text;
         }
         return null;
