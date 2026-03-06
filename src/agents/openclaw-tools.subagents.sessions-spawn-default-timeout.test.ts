@@ -5,10 +5,17 @@ import { resetSubagentRegistryForTests } from "./subagent-registry.js";
 
 const MAIN_SESSION_KEY = "agent:test:main";
 
-function applySubagentTimeoutDefault(seconds: number) {
+function applySubagentTimeoutDefault(seconds: number, minSeconds?: number) {
   sessionsHarness.setSessionsSpawnConfigOverride({
     session: { mainKey: "main", scope: "per-sender" },
-    agents: { defaults: { subagents: { runTimeoutSeconds: seconds } } },
+    agents: {
+      defaults: {
+        subagents: {
+          runTimeoutSeconds: seconds,
+          ...(minSeconds != null ? { minRunTimeoutSeconds: minSeconds } : {}),
+        },
+      },
+    },
   });
 }
 
@@ -56,5 +63,23 @@ describe("sessions_spawn default runTimeoutSeconds", () => {
     await spawnSubagent("call-2", { task: "hello", runTimeoutSeconds: 300 });
 
     expect(getSubagentTimeout(gateway.calls)).toBe(300);
+  });
+
+  it("enforces minRunTimeoutSeconds as floor when model sets lower value", async () => {
+    applySubagentTimeoutDefault(300, 120);
+    const gateway = sessionsHarness.setupSessionsSpawnGatewayMock({});
+
+    await spawnSubagent("call-3", { task: "hello", runTimeoutSeconds: 60 });
+
+    expect(getSubagentTimeout(gateway.calls)).toBe(120);
+  });
+
+  it("allows model timeout above minRunTimeoutSeconds", async () => {
+    applySubagentTimeoutDefault(300, 120);
+    const gateway = sessionsHarness.setupSessionsSpawnGatewayMock({});
+
+    await spawnSubagent("call-4", { task: "hello", runTimeoutSeconds: 200 });
+
+    expect(getSubagentTimeout(gateway.calls)).toBe(200);
   });
 });

@@ -299,10 +299,19 @@ export async function spawnSubagentDirect(
     Number.isFinite(cfg.agents.defaults.subagents.runTimeoutSeconds)
       ? Math.max(0, Math.floor(cfg.agents.defaults.subagents.runTimeoutSeconds))
       : 0;
-  const runTimeoutSeconds =
+  const cfgMinTimeout =
+    typeof cfg?.agents?.defaults?.subagents?.minRunTimeoutSeconds === "number" &&
+    Number.isFinite(cfg.agents.defaults.subagents.minRunTimeoutSeconds)
+      ? Math.max(0, Math.floor(cfg.agents.defaults.subagents.minRunTimeoutSeconds))
+      : 0;
+  const rawTimeout =
     typeof params.runTimeoutSeconds === "number" && Number.isFinite(params.runTimeoutSeconds)
       ? Math.max(0, Math.floor(params.runTimeoutSeconds))
       : cfgSubagentTimeout;
+  // Enforce config minimum so orchestrating models cannot autonomously
+  // decrease the timeout across retries (#37902).
+  const runTimeoutSeconds =
+    cfgMinTimeout > 0 && rawTimeout > 0 ? Math.max(cfgMinTimeout, rawTimeout) : rawTimeout;
   let modelApplied = false;
   let threadBindingReady = false;
   const { mainKey, alias } = resolveMainSessionAlias(cfg);
